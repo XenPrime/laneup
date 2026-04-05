@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LaneUp — In Game</title>
+  <!--
+    LaneUp — In-Game Overlay Window
+    This transparent overlay activates automatically when League launches.
+    It handles:
+      - Champ select panel (auto-detects assigned role via LCU + OW events)
+      - Death Review overlay (triggered by OW Game Events 'death' event)
+      - Real-time tips during game phases
+
+    The window is transparent — only the panels themselves have backgrounds.
+    Everything else is click-through invisible.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: transparent;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #e2e8f0;
+      width: 340px;
+      height: 580px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Variables (mirror prototype) ──────────────────────────────────── */
+    :root {
+      --surface:   #141824;
+      --card:      #1a2030;
+      --border:    #1e2a3a;
+      --text:      #e2e8f0;
+      --dim:       #94a3b8;
+      --muted:     #64748b;
+      --blue:      #2563eb;
+      --blue-bg:   rgba(37,99,235,.12);
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --amber:     #fbbf24;
+      --radius:    8px;
+      --radius-lg: 14px;
+    }
+
+    /* ── Drag handle (top strip) ────────────────────────────────────────── */
+    .drag-handle {
+      width: 100%;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      -webkit-app-region: drag;
+      cursor: grab;
+    }
+    .drag-dots {
+      display: flex; gap: 3px; align-items: center;
+    }
+    .drag-dots span {
+      width: 4px; height: 4px;
+      background: #2a3550;
+      border-radius: 50%;
+    }
+    .hide-btn {
+      -webkit-app-region: no-drag;
+      background: none;
+      border: none;
+      color: #4a5568;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color .15s, background .15s;
+    }
+    .hide-btn:hover { color: #e2e8f0; background: #1e2433; }
+
+    /* ── Champ Select Panel ─────────────────────────────────────────────── */
+    .cso-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      margin: 0 0 8px 0;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      transition: opacity .2s ease;
+    }
+    .cso-panel.hidden { opacity: 0; pointer-events: none; }
+
+    .cso-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .cso-avatar {
+      width: 32px; height: 32px;
+      background: var(--blue-bg);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cso-role-name  { font-size: 13px; font-weight: 600; }
+    .cso-role-tag   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .cso-body { padding: 0; }
+
+    .cso-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .cso-tab {
+      flex: 1;
+      text-align: center;
+      padding: 7px 0;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .cso-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    .cso-tab-panel { display: none; padding: 10px 12px; }
+    .cso-tab-panel.active { display: block; }
+
+    .cso-phase-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      margin-bottom: 8px; font-size: 11px;
+    }
+    .cso-phase-badge {
+      flex-shrink: 0;
+      font-size: 10px; font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-top: 1px;
+    }
+    .cso-phase-badge.early { background: rgba(34,197,94,.15);  color: var(--green); }
+    .cso-phase-badge.mid   { background: rgba(251,191,36,.12); color: var(--amber); }
+    .cso-phase-badge.late  { background: rgba(239,68,68,.12);  color: var(--red);   }
+    .cso-phase-desc { color: var(--dim); line-height: 1.45; }
+
+    .cso-synergy-tip { margin-bottom: 8px; }
+    .cso-synergy-type { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .cso-synergy-desc { font-size: 11px; color: var(--dim); line-height: 1.45; }
+
+    .cso-section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+    .btn-full {
+      width: 100%; padding: 7px 0;
+      background: var(--blue-bg);
+      color: var(--blue);
+      border: 1px solid rgba(37,99,235,.25);
+      border-radius: var(--radius);
+      font-size: 11px; font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background .15s;
+    }
+    .btn-full:hover { background: rgba(37,99,235,.2); }
+
+    /* ── Waiting state ──────────────────────────────────────────────────── */
+    .waiting-state {
+      padding: 16px 12px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .waiting-dot {
+      width: 8px; height: 8px;
+      background: var(--muted);
+      border-radius: 50%;
+      margin: 0 auto 10px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .3; transform: scale(1); }
+      50%       { opacity: 1;  transform: scale(1.2); }
+    }
+
+    /* ── Death Review Overlay ───────────────────────────────────────────── */
+    .death-review {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      overflow: hidden;
+      transform: translateX(360px);
+      opacity: 0;
+      transition: transform .3s cubic-bezier(.22,.68,0,1.2), opacity .25s ease;
+      pointer-events: none;
+    }
+    .death-review.show {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+    .dr-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .dr-header-left { display: flex; align-items: center; gap: 9px; }
+    .dr-skull {
+      width: 30px; height: 30px;
+      background: rgba(239,68,68,.15);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+    .dr-title    { font-size: 12px; font-weight: 600; }
+    .dr-subtitle { font-size: 10px; color: var(--muted); margin-top: 1px; }
+    .dr-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 13px; padding: 3px 6px;
+      border-radius: 4px; transition: color .15s;
+    }
+    .dr-close:hover { color: var(--text); }
+
+    .dr-tips { padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; }
+    .dr-tip {
+      display: flex; gap: 8px; align-items: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 9px;
+    }
+    .dr-tip-icon {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+    }
+    .dr-tip-icon.red   { background: rgba(239,68,68,.15); }
+    .dr-tip-icon.amber { background: rgba(251,191,36,.12); }
+    .dr-tip-icon.blue  { background: var(--blue-bg); }
+    .dr-tip-label { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .dr-tip-text  { font-size: 11px; color: var(--dim); line-height: 1.45; }
+
+    .dr-footer { padding: 0 10px 10px; }
+    .dr-timer-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .dr-timer-fill { height: 100%; background: var(--blue); border-radius: 2px; width: 100%; transition: width linear; }
+  </style>
+</head>
+<body>
+
+  <!-- Drag handle — lets the user reposition the overlay -->
+  <div class="drag-handle" id="dragHandle">
+    <div class="drag-dots">
+      <span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+    </div>
+    <button class="hide-btn" onclick="hideOverlay()">Hide</button>
+  </div>
+
+  <!-- Champ Select Panel -->
+  <div class="cso-panel" id="csoPanel">
+    <div class="cso-header" id="csoHeader">
+      <div class="cso-avatar">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <div>
+        <div class="cso-role-name">Waiting for champion select…</div>
+        <div class="cso-role-tag" id="csoStatus">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:4px;"></span>
+          Listening for LCU
+        </div>
+      </div>
+    </div>
+    <div class="cso-body" id="csoBody">
+      <div class="waiting-state">
+        <div class="waiting-dot"></div>
+        LaneUp will auto-detect your role<br>when champion select starts.
+      </div>
+    </div>
+  </div>
+
+  <!-- Death Review Overlay -->
+  <div class="death-review" id="deathReview">
+    <div class="dr-header">
+      <div class="dr-header-left">
+        <div class="dr-skull">💀</div>
+        <div>
+          <div class="dr-title">Death Review</div>
+          <div class="dr-subtitle" id="drSubtitle">Death #1</div>
+        </div>
+      </div>
+      <button class="dr-close" onclick="closeDR()">✕</button>
+    </div>
+    <div class="dr-tips" id="drTips"></div>
+    <div class="dr-footer">
+      <div class="dr-timer-bar">
+        <div class="dr-timer-fill" id="drTimerFill"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../js/constants.js"></script>
+  <script>
+    // ── State ────────────────────────────────────────────────────────────────
+    let _deathCount   = 0;
+    let _playerLevel  = 1;
+    let _kills        = 0;
+    let _assists      = 0;
+    let _gameTime     = 0;
+    let _assignedRole = null;
+    let _drTimer      = null;
+    let _overlayVisible = true;
+
+    // ── Receive messages from background.js ──────────────────────────────────
+    overwolf.windows.onMessageReceived.addListener(msg => {
+      switch (msg.id) {
+
+        case 'PLAYER_DIED':
+          _deathCount++;
+          showDeathReview();
+          break;
+
+        case 'PLAYER_KILL':
+          _kills++;
+          break;
+
+        case 'PLAYER_ASSIST':
+          _assists++;
+          break;
+
+        case 'PLAYER_LEVEL':
+          _playerLevel = msg.content?.level ?? _playerLevel;
+          break;
+
+        case 'MATCH_START':
+          resetSession();
+          break;
+
+        case 'MATCH_END':
+          hideCSOPanel();
+          break;
+
+        case 'CHAMP_SELECT_UPDATE':
+          handleChampSelectUpdate(msg.content?.info);
+          break;
+
+        case 'MATCH_INFO_UPDATE':
+          handleMatchInfoUpdate(msg.content?.info);
+          break;
+      }
+    });
+
+    // ── Session reset ─────────────────────────────────────────────────────────
+    function resetSession() {
+      _deathCount  = 0;
+      _kills       = 0;
+      _assists     = 0;
+      _playerLevel = 1;
+      _gameTime    = 0;
+      closeDR();
+    }
+
+    // ── Champ select handling ─────────────────────────────────────────────────
+    function handleChampSelectUpdate(info) {
+      // OW events give us some champ-select data, but for full LCU richness
+      // we also poll /lol-champ-select/v1/session directly (see pollLCU below).
+      if (info && info.assignedPosition) {
+        const keyMap = { top:'top', jungle:'jungle', middle:'mid', bottom:'bot', utility:'support' };
+        _assignedRole = keyMap[info.assignedPosition] ?? null;
+        if (_assignedRole) renderCSOPanel(_assignedRole);
+      }
+    }
+
+    function handleMatchInfoUpdate(info) {
+      if (info && info.game_mode) {
+        // Could use this to disable some features in ARAM etc.
+        console.log('[InGame] Game mode:', info.game_mode);
+      }
+    }
+
+    // ── LCU polling (fallback for champ select data) ──────────────────────────
+    // Overwolf's champ-select events can be delayed; LCU gives us faster data.
+    // We poll every 2 seconds during the likely champ-select window.
+    let _lcuPollInterval = null;
+
+    function startLCUPoll(port, password) {
+      if (_lcuPollInterval) return;
+      const auth = btoa('riot:' + password);
+      _lcuPollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`https://127.0.0.1:${port}/lol-champ-select/v1/session`, {
+            headers: { 'Authorization': 'Basic ' + auth }
+          });
+          if (!res.ok) { stopLCUPoll(); return; }
+          const data = await res.json();
+          const me = data.myTeam?.find(p => p.cellId === data.localPlayerCellId);
+          if (me && me.assignedPosition) {
+            const keyMap = { top:'top', jungle:'jungle', middle:'mid', bottom:'bot', utility:'support' };
+            const key = keyMap[me.assignedPosition];
+            if (key && key !== _assignedRole) {
+              _assignedRole = key;
+              renderCSOPanel(key);
+            }
+          }
+        } catch (_) {}
+      }, 2000);
+    }
+
+    function stopLCUPoll() {
+      clearInterval(_lcuPollInterval);
+      _lcuPollInterval = null;
+    }
+
+    // Request LCU credentials from background window on load
+    overwolf.windows.getWindow(WINDOWS.BACKGROUND, bgWin => {
+      if (bgWin && bgWin.window) {
+        const creds = bgWin.window.getLCUCredentials?.();
+        if (creds) startLCUPoll(creds.port, creds.password);
+      }
+    });
+
+    // ── CSO Panel renderer ────────────────────────────────────────────────────
+    // Minimal inline ROLES data for the overlay.
+    // Full data lives in the prototype; this will be shared via a roles.js module
+    // once we migrate the prototype into the app properly.
+    const OVERLAY_ROLES = {
+      top:     { name: 'Top',     phases: ['Survive laning phase. Farm under tower if needed.', 'Split push or join teamfights — read the map.', 'Peel for carries or hard-engage based on your champ.'] },
+      jungle:  { name: 'Jungle',  phases: ['Clear camps efficiently. Look for early gank windows.', 'Contest dragon/rift. Track enemy jungler.', 'Secure Baron. Hard-engage or peel in teamfights.'] },
+      mid:     { name: 'Mid',     phases: ['Push wave then roam to bot or top. Ping before roaming.', 'Rotate to dragons and herald. Control vision.', 'Stay with your team. You are the main damage dealer.'] },
+      bot:     { name: 'Bot',     phases: ['Farm safely. Only trade when you have the HP advantage.', 'Take dragon with your team. Transition to team fights.', 'Stay protected. Your damage wins teamfights — stay alive.'] },
+      support: { name: 'Support', phases: ['Ward river and lane bushes. Shield and peel your ADC.', 'Roam to set up vision. Peel for carries in skirmishes.', 'Ward baron/dragon. Engage or peel depending on your champion.'] },
+    };
+
+    function renderCSOPanel(key) {
+      const r = OVERLAY_ROLES[key];
+      if (!r) return;
+
+      const phaseLabels = ['Early', 'Mid', 'Late'];
+      const phaseClasses = ['early', 'mid', 'late'];
+
+      const phasesHTML = r.phases.map((desc, i) => `
+        <div class="cso-phase-row">
+          <span class="cso-phase-badge ${phaseClasses[i]}">${phaseLabels[i]}</span>
+          <div class="cso-phase-desc">${desc}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('csoHeader').innerHTML = `
+        <div class="cso-avatar">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div>
+          <div class="cso-role-name">${r.name}</div>
+          <div class="cso-role-tag" id="csoStatus">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;"></span>
+            Detected via LCU
+          </div>
+        </div>
+      `;
+
+      document.getElementById('csoBody').innerHTML = `
+        <div class="cso-tabs">
+          <div class="cso-tab active" onclick="csoTab(this,'phases-tab')">Phases</div>
+          <div class="cso-tab" onclick="csoTab(this,'tips-tab')">Fight tips</div>
+        </div>
+        <div class="cso-tab-panel active" id="phases-tab">
+          <div class="cso-section-title" style="margin-bottom:8px;">Game phases</div>
+          ${phasesHTML}
+        </div>
+        <div class="cso-tab-panel" id="tips-tab">
+          <div class="cso-section-title" style="margin-bottom:8px;">When to fight</div>
+          <div class="cso-phase-desc" style="font-size:11px;line-height:1.55;">
+            Full fight tips are in the LaneUp desktop app —
+            press <strong style="color:var(--text);">Ctrl+Shift+L</strong> to open it.
+          </div>
+        </div>
+      `;
+
+      document.getElementById('csoPanel').classList.remove('hidden');
+    }
+
+    function csoTab(el, panelId) {
+      document.querySelectorAll('.cso-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.cso-tab-panel').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById(panelId)?.classList.add('active');
+    }
+
+    function hideCSOPanel() {
+      document.getElementById('csoPanel').classList.add('hidden');
+    }
+
+    // ── Death Review ──────────────────────────────────────────────────────────
+    const DEATH_DISMISS_MS = 12000;
+
+    const ROLE_TIPS = {
+      top:     { icon: '🗡', cls: 'blue', label: 'Top lane tip',    text: 'Dying top gives the enemy free roam. Ward river and tribush before you extend.' },
+      jungle:  { icon: '🌲', cls: 'blue', label: 'Jungle tip',      text: 'Track where the enemy jungler was last seen. Adjust your pathing to avoid them.' },
+      mid:     { icon: '⚡', cls: 'blue', label: 'Mid lane tip',     text: 'Mid is ganked from both sides. Keep your wave slightly behind the midpoint.' },
+      bot:     { icon: '🏹', cls: 'blue', label: 'ADC tip',          text: 'ADC deaths are very costly. Hug the tower and let your support absorb pressure.' },
+      support: { icon: '💙', cls: 'blue', label: 'Support tip',      text: 'Staying alive is more important than saving your ADC in a losing fight.' },
+    };
+
+    function getDeathTips() {
+      const tips = [];
+
+      if (_deathCount === 1 && _gameTime < 180) {
+        tips.push({ icon: '⚡', cls: 'amber', label: 'Early death', text: 'Dying this early hands the enemy +150 First Blood gold. Respect level 2 and 3 power spikes.' });
+      }
+      if (_playerLevel < 6) {
+        tips.push({ icon: '🛡', cls: 'blue', label: 'Pre-6 window', text: 'You haven\'t unlocked your ultimate yet. Stay behind your wave and only trade with an HP advantage.' });
+      }
+      if (_deathCount >= 3 && _gameTime < 600) {
+        tips.push({ icon: '⚠', cls: 'red', label: 'Slow down', text: `${_deathCount} deaths in under 10 minutes. Give up farm if needed — staying alive is worth more than any CS.` });
+      }
+      if (_deathCount >= 5 && tips.length < 2) {
+        tips.push({ icon: '⚠', cls: 'red', label: 'Reduce solo plays', text: 'Stick with teammates. The enemy is snowballing off your deaths — avoid going anywhere alone.' });
+      }
+      if (_gameTime > 1500 && tips.length < 2) {
+        tips.push({ icon: '⏱', cls: 'amber', label: 'Long respawn timer', text: 'Deaths after 25 minutes mean long respawns and possible Baron or Dragon steals for the enemy.' });
+      }
+      if (tips.length < 2 && _assignedRole && ROLE_TIPS[_assignedRole]) {
+        tips.push(ROLE_TIPS[_assignedRole]);
+      }
+      if (tips.length === 0) {
+        tips.push({ icon: '💡', cls: 'blue', label: 'Think before re-engaging', text: 'Do you have vision? Do you have backup? Is the enemy jungler nearby? If unsure — farm safe.' });
+      }
+
+      return tips.slice(0, 2);
+    }
+
+    function showDeathReview() {
+      const overlay  = document.getElementById('deathReview');
+      const subtitle = document.getElementById('drSubtitle');
+      const tipsEl   = document.getElementById('drTips');
+      const fill     = document.getElementById('drTimerFill');
+
+      const mins = String(Math.floor(_gameTime / 60)).padStart(2, '0');
+      const secs = String(Math.floor(_gameTime % 60)).padStart(2, '0');
+      subtitle.textContent = `Death #${_deathCount}  ·  ${mins}:${secs}  ·  ${_kills}/${_deathCount}/${_assists}`;
+
+      const tips = getDeathTips();
+      tipsEl.innerHTML = tips.map(t => `
+        <div class="dr-tip">
+          <div class="dr-tip-icon ${t.cls}">${t.icon}</div>
+          <div>
+            <div class="dr-tip-label">${t.label}</div>
+            <div class="dr-tip-text">${t.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      overlay.classList.add('show');
+
+      // Timer bar
+      fill.style.transition = 'none';
+      fill.style.width = '100%';
+      fill.getBoundingClientRect();
+      fill.style.transition = `width ${DEATH_DISMISS_MS}ms linear`;
+      fill.style.width = '0%';
+
+      clearTimeout(_drTimer);
+      _drTimer = setTimeout(closeDR, DEATH_DISMISS_MS);
+    }
+
+    function closeDR() {
+      clearTimeout(_drTimer);
+      document.getElementById('deathReview').classList.remove('show');
+    }
+
+    // ── Overlay visibility ────────────────────────────────────────────────────
+    function hideOverlay() {
+      _overlayVisible = false;
+      overwolf.windows.getCurrentWindow(r => {
+        overwolf.windows.minimize(r.window.id, () => {});
+      });
+    }
+
+    // ── Live Client Data — game time sync ─────────────────────────────────────
+    // Poll localhost:2999 to keep _gameTime accurate (used in death tips).
+    setInterval(async () => {
+      try {
+        const res  = await fetch(`${LIVE_CLIENT_BASE}/gamestats`);
+        if (!res.ok) return;
+        const data = await res.json();
+        _gameTime = data.gameTime ?? _gameTime;
+      } catch (_) {}
+    }, LIVE_CLIENT_POLL_MS);
+  </script>
+</body>
+</html>

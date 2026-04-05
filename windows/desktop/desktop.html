@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LaneUp</title>
+  <!--
+    LaneUp — Desktop Window
+    This is the main app window the user sees outside of a game.
+    It hosts the home screen, role guides, and settings.
+
+    TODO: When converting the prototype to production, move the shared
+    CSS and ROLES data into separate files and import them here.
+    For now this file is a thin shell that will host the migrated prototype UI.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      width: 420px;
+      height: 700px;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Custom title bar (Overwolf windows have no native chrome) */
+    .title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 36px;
+      padding: 0 12px;
+      background: #0a0d14;
+      border-bottom: 1px solid #1e2433;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+    .title-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #7c8aad;
+      letter-spacing: .5px;
+    }
+    .title-bar-logo {
+      width: 18px; height: 18px;
+      background: #2563eb;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; color: #fff;
+    }
+    .title-bar-controls {
+      display: flex;
+      gap: 4px;
+      -webkit-app-region: no-drag;
+    }
+    .tb-btn {
+      width: 28px; height: 28px;
+      background: none;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #7c8aad;
+      font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    .tb-btn:hover { background: #1e2433; color: #e2e8f0; }
+    .tb-btn.close:hover { background: rgba(239,68,68,.2); color: #f87171; }
+
+    /* Content area */
+    .content {
+      width: 100%;
+      height: calc(100% - 36px);
+      overflow-y: auto;
+    }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .content::-webkit-scrollbar-thumb { background: #1e2433; border-radius: 2px; }
+
+    /* Loading / not-yet-migrated placeholder */
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: #4a5568;
+      text-align: center;
+      padding: 24px;
+    }
+    .placeholder h2 { font-size: 15px; color: #7c8aad; }
+    .placeholder p  { font-size: 12px; line-height: 1.6; }
+    .placeholder .badge {
+      background: #1e2433;
+      color: #2563eb;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid #2a3550;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Custom title bar -->
+  <div class="title-bar">
+    <div class="title-bar-left">
+      <div class="title-bar-logo">L</div>
+      LaneUp
+    </div>
+    <div class="title-bar-controls">
+      <button class="tb-btn" title="Minimize" onclick="minimizeWindow()">&#x2013;</button>
+      <button class="tb-btn close" title="Close" onclick="closeWindow()">&#x2715;</button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!--
+      MIGRATION STATUS: Prototype UI goes here.
+
+      Next step: copy the <style> block and screen divs from
+      prototype/laneup-prototype.html into this file, then wire up
+      the overwolf.windows.sendMessage listener below to handle
+      MATCH_START / MATCH_END events from background.js.
+
+      For now, showing a placeholder so the window renders correctly
+      and can be tested inside Overwolf.
+    -->
+    <div class="placeholder">
+      <div class="badge">Desktop Window</div>
+      <h2>LaneUp is running</h2>
+      <p>
+        This window will host the role guide and home screen.<br><br>
+        During champion select, the in-game overlay activates automatically.<br><br>
+        Press <strong>Ctrl+Shift+L</strong> to toggle this window.
+      </p>
+    </div>
+  </div>
+
+  <script src="../../js/constants.js"></script>
+  <script>
+    // ── Window controls ──────────────────────────────────────────────────────
+    function minimizeWindow() {
+      overwolf.windows.getCurrentWindow(r => {
+        overwolf.windows.minimize(r.window.id, () => {});
+      });
+    }
+
+    function closeWindow() {
+      overwolf.windows.getCurrentWindow(r => {
+        overwolf.windows.close(r.window.id, () => {});
+      });
+    }
+
+    // ── Messages from background.js ──────────────────────────────────────────
+    overwolf.windows.onMessageReceived.addListener(msg => {
+      switch (msg.id) {
+        case 'MATCH_START':
+          // TODO: reset session stats, start new game tracking
+          console.log('[Desktop] Match started');
+          break;
+        case 'MATCH_END':
+          // TODO: show post-game summary
+          console.log('[Desktop] Match ended', msg.content);
+          break;
+      }
+    });
+
+    // ── Drag-to-move (title bar is handled by -webkit-app-region: drag) ──────
+    // Overwolf also supports overwolf.windows.dragMove() for finer control
+    // if needed.
+  </script>
+</body>
+</html>
