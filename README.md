@@ -200,6 +200,4 @@ The prototype HTML is self-contained — no dependencies, no build step. Just op
 - **Autofill and quest mismatch** are treated as the same UX problem: wrong guide loaded, same fix
 - **Panel width target: ~300px** for in-game overlay for readability
 
----
 
-*Built with Claude — Cowork mode*
