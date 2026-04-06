@@ -580,19 +580,23 @@ hr { border: none; border-top: 1px solid var(--border); }
 }
 .role-check svg { width: 9px; height: 9px; stroke: #041209; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
-/* Simple Mode toggle */
-.simple-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 16px;
-  padding: 10px 14px;
+/* Settings strip (Simple Mode + Death Review) */
+.settings-strip {
+  margin-top: 12px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  overflow: hidden;
 }
-.simple-toggle-label { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; }
-.simple-toggle-sub   { font-size: 11px; color: var(--muted); }
+.ss-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.ss-row:last-of-type { border-bottom: none; }
+.ss-label { font-size: 11px; color: var(--dim); }
 .toggle-switch {
   position: relative;
   width: 36px; height: 20px;
@@ -700,12 +704,11 @@ hr { border: none; border-top: 1px solid var(--border); }
 
 /* Death review sim button */
 .dr-sim-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; padding: 5px 12px;
-  background: rgba(239,68,68,.12);
+  font-size: 10px; padding: 3px 10px;
+  background: rgba(239,68,68,.1);
   color: var(--red);
-  border: 1px solid rgba(239,68,68,.25);
-  border-radius: var(--radius);
+  border: 1px solid rgba(239,68,68,.2);
+  border-radius: 20px;
   cursor: pointer; transition: background .15s;
 }
 .dr-sim-btn:hover { background: rgba(239,68,68,.2); }
@@ -1554,33 +1557,25 @@ hr { border: none; border-top: 1px solid var(--border); }
       </div>
     </div>
 
-    <div class="simple-toggle-row">
-      <div>
-        <div class="simple-toggle-label">Simple Mode</div>
-        <div class="simple-toggle-sub">Shorter tips — great for your first few games</div>
+    <div class="settings-strip">
+      <div class="ss-row">
+        <span class="ss-label">Simple Mode</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="simpleModeToggle" onchange="setSimpleMode(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="simpleModeToggle" onchange="setSimpleMode(this.checked)">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="simple-toggle-row" style="margin-top:8px;">
-      <div style="flex:1;">
-        <div class="simple-toggle-label">Death Review</div>
-        <div class="simple-toggle-sub">Get a quick tip every time you die in-game</div>
+      <div class="ss-row">
+        <span class="ss-label">Death Review</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="deathReviewToggle" checked onchange="setDeathReviewEnabled(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="deathReviewToggle" checked onchange="setDeathReviewEnabled(this.checked)">
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div style="margin-top:10px;">
-      <button class="dr-sim-btn" onclick="simulateDeath()">
-        <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        Simulate death
-      </button>
+      <div class="ss-row">
+        <span class="ss-label" style="color:var(--muted);">Test death overlay</span>
+        <button class="dr-sim-btn" onclick="simulateDeath()">Simulate</button>
+      </div>
     </div>
 
     <div class="progress-strip">
