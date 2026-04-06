@@ -1,5 +1,1 @@
-<<<<<<< HEAD
- b547a263-760d-414e-acb4-27afb07ea4c5 
-=======
 43eefe96-b7a6-41f8-b02b-24641774602b
->>>>>>> 62d5b9a (update Riot verification file)
