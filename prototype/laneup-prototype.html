@@ -292,7 +292,25 @@ hr { border: none; border-top: 1px solid var(--border); }
 }
 .modal-header-icon svg { width: 22px; height: 22px; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .modal-header-text h2 { font-size: 17px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 4px; }
-.modal-header-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.modal-header-tags { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.mode-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600; letter-spacing: .3px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  transition: background .15s, color .15s, border-color .15s;
+  user-select: none;
+}
+.mode-pill.active {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border-color: rgba(37,99,235,.3);
+}
+.mode-pill svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .modal-close {
   margin-left: auto;
   background: var(--card);
@@ -2396,11 +2414,21 @@ hr { border: none; border-top: 1px solid var(--border); }
 
     const iconSvg = `<svg class="${r.iconCol}" viewBox="0 0 24 24">${r.iconPath}</svg>`;
 
+    const isSimple = window._simpleMode;
     document.getElementById('modalHeader').innerHTML = `
       <div class="modal-header-icon ${r.iconBg}">${iconSvg}</div>
       <div class="modal-header-text">
         <h2>${r.name}</h2>
-        <div class="modal-header-tags">${r.tags.join('')}</div>
+        <div class="modal-header-tags">
+          ${r.tags.join('')}
+          <button class="mode-pill ${isSimple ? 'active' : ''}" onclick="setSimpleMode(${!isSimple})" title="${isSimple ? 'Switch to detailed tips' : 'Switch to simple tips'}">
+            <svg viewBox="0 0 24 24">${isSimple
+              ? '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>'
+              : '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'
+            }</svg>
+            ${isSimple ? 'Simple' : 'Detailed'}
+          </button>
+        </div>
       </div>
       <button class="modal-close" onclick="closeModal()">
         <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -2801,6 +2829,9 @@ hr { border: none; border-top: 1px solid var(--border); }
 
   function setSimpleMode(on) {
     window._simpleMode = on;
+    // Keep settings strip checkbox in sync
+    const cb = document.getElementById('simpleModeToggle');
+    if (cb) cb.checked = on;
     // Refresh open modal if any
     if (window._openRoleKey && document.getElementById('roleModal').classList.contains('open')) {
       openRole(window._openRoleKey);
