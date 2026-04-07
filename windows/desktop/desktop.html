@@ -1,182 +1,1346 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>LaneUp</title>
-  <!--
-    LaneUp — Desktop Window
-    This is the main app window the user sees outside of a game.
-    It hosts the home screen, role guides, and settings.
+<meta charset="utf-8">
+<title>LaneUp</title>
+<!--
+  LaneUp — Desktop Window
+  420 × 700px Overwolf overlay window.
+  Screens: Home, Roles (+ role detail modal), Settings.
+  The in-game overlay (champ select + death review) lives in windows/in-game/in-game.html.
+-->
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    TODO: When converting the prototype to production, move the shared
-    CSS and ROLES data into separate files and import them here.
-    For now this file is a thin shell that will host the migrated prototype UI.
-  -->
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg:           #08090d;
+  --surface:      #0d0f15;
+  --card:         #121520;
+  --card-hover:   #161a27;
+  --border:       #1c2030;
+  --border-up:    #252c40;
+  --text:         #dde1f0;
+  --muted:        #5a6382;
+  --dim:          #2e3450;
 
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
-      width: 420px;
-      height: 700px;
-      overflow: hidden;
-      user-select: none;
-    }
+  --blue:         #4f7fff;
+  --blue-bg:      rgba(79,127,255,.1);
+  --blue-border:  rgba(79,127,255,.25);
 
-    /* Custom title bar (Overwolf windows have no native chrome) */
-    .title-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 36px;
-      padding: 0 12px;
-      background: #0a0d14;
-      border-bottom: 1px solid #1e2433;
-      -webkit-app-region: drag;
-      flex-shrink: 0;
-    }
-    .title-bar-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #7c8aad;
-      letter-spacing: .5px;
-    }
-    .title-bar-logo {
-      width: 18px; height: 18px;
-      background: #2563eb;
-      border-radius: 4px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; color: #fff;
-    }
-    .title-bar-controls {
-      display: flex;
-      gap: 4px;
-      -webkit-app-region: no-drag;
-    }
-    .tb-btn {
-      width: 28px; height: 28px;
-      background: none;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      color: #7c8aad;
-      font-size: 13px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .15s, color .15s;
-    }
-    .tb-btn:hover { background: #1e2433; color: #e2e8f0; }
-    .tb-btn.close:hover { background: rgba(239,68,68,.2); color: #f87171; }
+  --amber:        #e8a020;
+  --amber-bg:     rgba(232,160,32,.08);
+  --amber-border: rgba(232,160,32,.2);
 
-    /* Content area */
-    .content {
-      width: 100%;
-      height: calc(100% - 36px);
-      overflow-y: auto;
-    }
-    .content::-webkit-scrollbar { width: 4px; }
-    .content::-webkit-scrollbar-track { background: transparent; }
-    .content::-webkit-scrollbar-thumb { background: #1e2433; border-radius: 2px; }
+  --green:        #2db87a;
+  --green-bg:     rgba(45,184,122,.08);
+  --green-border: rgba(45,184,122,.22);
 
-    /* Loading / not-yet-migrated placeholder */
-    .placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      gap: 12px;
-      color: #4a5568;
-      text-align: center;
-      padding: 24px;
-    }
-    .placeholder h2 { font-size: 15px; color: #7c8aad; }
-    .placeholder p  { font-size: 12px; line-height: 1.6; }
-    .placeholder .badge {
-      background: #1e2433;
-      color: #2563eb;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 20px;
-      border: 1px solid #2a3550;
-    }
-  </style>
+  --red:          #e05252;
+  --red-bg:       rgba(224,82,82,.08);
+  --red-border:   rgba(224,82,82,.22);
+
+  --orange:       #e07c30;
+  --orange-bg:    rgba(224,124,48,.08);
+  --orange-border:rgba(224,124,48,.22);
+
+  --radius-sm: 5px;
+  --radius:    8px;
+  --radius-lg: 12px;
+
+  --title-h:  36px;
+  --nav-h:    52px;
+}
+
+html, body {
+  width: 420px;
+  height: 700px;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-up); border-radius: 4px; }
+
+/* ── TITLE BAR ── */
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--title-h);
+  padding: 0 12px;
+  background: #0a0d14;
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .5px;
+}
+.title-logo {
+  width: 18px; height: 18px;
+  background: var(--blue);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: #fff;
+}
+.title-controls {
+  display: flex;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+.tb-btn {
+  width: 28px; height: 28px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.tb-btn:hover { background: var(--border); color: var(--text); }
+.tb-btn.close:hover { background: rgba(224,82,82,.2); color: #f87171; }
+
+/* ── SHELL ── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: calc(700px - var(--title-h));
+}
+
+/* ── SCREENS ── */
+.screens {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.screen {
+  display: none;
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+}
+.screen.active { display: block; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  height: var(--nav-h);
+  background: #0a0d14;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  transition: color .15s;
+  padding: 0;
+  border-top: 2px solid transparent;
+}
+.nav-item svg {
+  width: 18px; height: 18px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.nav-item.active {
+  color: var(--blue);
+  border-top-color: var(--blue);
+}
+.nav-item:hover:not(.active) { color: var(--text); }
+
+/* ── SHARED COMPONENTS ── */
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.tag-green  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+.tag-blue   { background: var(--blue-bg);   color: var(--blue);   border: 1px solid var(--blue-border); }
+.tag-amber  { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber-border); }
+.tag-orange { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
+.tag-red    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-border); }
+.tag-muted  { background: var(--surface);   color: var(--muted);  border: 1px solid var(--border); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity .15s, background .15s;
+}
+.btn:active { opacity: .8; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover { background: #6b90ff; }
+.btn-ghost { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--card-hover); }
+
+/* ── HOME SCREEN ── */
+.home-quest {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.home-quest-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.home-quest-role {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.hq-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hq-icon svg {
+  width: 20px; height: 20px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.hq-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+}
+.hq-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+.hq-actions {
+  display: flex;
+  gap: 8px;
+}
+.hq-actions .btn { flex: 1; font-size: 11px; padding: 7px 10px; }
+
+.home-no-quest {
+  background: var(--card);
+  border: 1px dashed var(--border-up);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.home-no-quest h3 { font-size: 13px; margin-bottom: 6px; }
+.home-no-quest p { font-size: 11px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
+
+.home-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.status-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.status-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.status-card-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.status-card-sub {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.home-tip {
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: var(--radius);
+  padding: 12px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.home-tip strong { color: var(--blue); }
+
+/* ── ROLES SCREEN ── */
+.roles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.role-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  position: relative;
+}
+.role-card:hover { background: var(--card-hover); border-color: var(--border-up); }
+.role-card-icon {
+  width: 34px; height: 34px;
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+}
+.role-card-icon svg {
+  width: 17px; height: 17px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.role-card-name { font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+.role-card-diff { margin-bottom: 6px; }
+.role-card-summary { font-size: 10px; color: var(--muted); line-height: 1.5; }
+.role-card-arrow {
+  position: absolute;
+  top: 12px; right: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Role icon colour helpers */
+.icon-bg-orange { background: var(--orange-bg); }
+.icon-bg-red    { background: var(--red-bg); }
+.icon-bg-amber  { background: var(--amber-bg); }
+.icon-bg-blue   { background: var(--blue-bg); }
+.icon-bg-green  { background: var(--green-bg); }
+.icon-col-orange svg { color: var(--orange); }
+.icon-col-red    svg { color: var(--red); }
+.icon-col-amber  svg { color: var(--amber); }
+.icon-col-blue   svg { color: var(--blue); }
+.icon-col-green  svg { color: var(--green); }
+
+/* ── ROLE MODAL ── */
+.modal-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(8,9,13,.85);
+  z-index: 100;
+  overflow-y: auto;
+}
+.modal-backdrop.open { display: block; }
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-up);
+  border-radius: var(--radius-lg);
+  margin: 12px;
+  overflow: hidden;
+}
+.modal-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.modal-icon svg {
+  width: 19px; height: 19px;
+  stroke: currentColor; fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.modal-title-text { flex: 1; }
+.modal-title-text h2 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.modal-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.modal-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center;
+}
+.modal-close:hover { background: var(--border); color: var(--text); }
+.modal-close svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+/* Simple / Detailed pill toggle */
+.mode-toggle {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px;
+  margin: 12px 14px;
+  gap: 2px;
+}
+.mode-btn {
+  flex: 1;
+  padding: 5px 0;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  background: none;
+  border-radius: 16px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.mode-btn.active {
+  background: var(--blue);
+  color: #fff;
+}
+
+.modal-body { padding: 0 14px 14px; }
+
+.role-summary {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 14px;
+  padding: 10px;
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+/* Simple mode content */
+.simple-view { }
+.job-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+}
+.job-num {
+  width: 22px; height: 22px;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.job-text h4 { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+.job-text p  { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* Detailed mode content */
+.detailed-view { display: none; }
+
+.section-head {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 14px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.phase-row {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.phase-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.phase-label span:first-child {
+  font-size: 11px;
+  font-weight: 700;
+}
+.phase-time {
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--surface);
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.phase-desc { padding: 8px 10px; font-size: 11px; color: var(--muted); line-height: 1.55; }
+.phase-early .phase-label { border-left: 3px solid var(--green); }
+.phase-mid   .phase-label { border-left: 3px solid var(--amber); }
+.phase-late  .phase-label { border-left: 3px solid var(--red); }
+
+.fight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+.fight-col-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.fight-col-head.go  { color: var(--green); }
+.fight-col-head.no  { color: var(--red); }
+.fight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 5px 8px;
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin-bottom: 5px;
+}
+.fight-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.fight-dot.go { background: var(--green); }
+.fight-dot.no { background: var(--red); }
+
+.stub-notice {
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--amber);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.modal-footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.modal-footer-note {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.4;
+  flex: 1;
+}
+.modal-footer .btn { flex-shrink: 0; font-size: 11px; padding: 7px 12px; }
+
+/* ── SETTINGS SCREEN ── */
+.settings-tabs {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+.settings-tab {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.settings-tab.active { background: var(--blue); color: #fff; }
+
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+.settings-group { margin-bottom: 20px; }
+.sg-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 12px; font-weight: 500; }
+.setting-desc  { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.setting-control { flex-shrink: 0; }
+
+.toggle {
+  width: 34px; height: 20px;
+  background: var(--border-up);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: background .2s;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  top: 3px; left: 3px;
+  transition: transform .2s;
+}
+.toggle.on { background: var(--blue); }
+.toggle.on::after { transform: translateX(14px); }
+
+.kbd-field {
+  background: var(--card);
+  border: 1px solid var(--border-up);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.settings-select {
+  background: var(--card);
+  border: 1px solid var(--border-up);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+
+/* Recommended game settings */
+.notice-bar {
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.rec-group { margin-bottom: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.rec-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 11px; font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.rec-header svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; flex-shrink: 0; color: var(--muted); }
+.rec-chevron { margin-left: auto; }
+.rec-chevron svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; transition: transform .2s; }
+.rec-body { padding: 0 12px; }
+.rec-body.collapsed { display: none; }
+.rec-row { padding: 8px 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; }
+.rec-row:last-child { border-bottom: none; }
+.rec-setting { font-size: 11px; font-weight: 600; }
+.rec-value { font-size: 11px; font-weight: 700; color: var(--blue); text-align: right; }
+.rec-why { font-size: 10px; color: var(--muted); line-height: 1.4; grid-column: 1 / -1; }
+
+/* ── ACTIVE QUEST INDICATOR (role card badge) ── */
+.role-card.active-quest { border-color: var(--blue); }
+.active-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 8px; height: 8px;
+  background: var(--blue);
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+</style>
 </head>
 <body>
 
-  <!-- Custom title bar -->
-  <div class="title-bar">
-    <div class="title-bar-left">
-      <div class="title-bar-logo">L</div>
-      LaneUp
+<!-- ── TITLE BAR ── -->
+<div class="title-bar">
+  <div class="title-bar-left">
+    <div class="title-logo">L</div>
+    LaneUp
+  </div>
+  <div class="title-controls">
+    <button class="tb-btn" title="Minimize" onclick="minimizeWindow()">&#x2013;</button>
+    <button class="tb-btn close" title="Close" onclick="closeWindow()">&#x2715;</button>
+  </div>
+</div>
+
+<!-- ── SHELL ── -->
+<div class="shell">
+  <div class="screens" id="screens">
+
+    <!-- ── HOME ── -->
+    <div class="screen active" id="screen-home">
+
+      <!-- Quest card (shown when quest is set) -->
+      <div id="questCard" style="display:none;">
+        <div class="home-quest">
+          <div class="home-quest-label">Your Quest</div>
+          <div class="home-quest-role" id="questRoleRow"><!-- filled by JS --></div>
+          <div class="hq-actions">
+            <button class="btn btn-ghost" onclick="goScreen('roles')">Change Role</button>
+            <button class="btn btn-primary" onclick="openRole(window._activeQuest)">View Guide →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- No-quest placeholder (shown when no quest is set) -->
+      <div id="noQuestCard">
+        <div class="home-no-quest">
+          <h3>Choose a Role to Learn</h3>
+          <p>Pick the role you'll be playing so LaneUp can give you relevant tips during your games.</p>
+          <button class="btn btn-primary" style="width:100%;" onclick="goScreen('roles')">Pick a Role →</button>
+        </div>
+      </div>
+
+      <div class="section-title">Status</div>
+      <div class="home-status-grid">
+        <div class="status-card">
+          <div class="status-card-label">Games Played</div>
+          <div class="status-card-val" id="statGames">—</div>
+          <div class="status-card-sub">This session</div>
+        </div>
+        <div class="status-card">
+          <div class="status-card-label">Overlay</div>
+          <div class="status-card-val" style="color:var(--green);font-size:12px;">Ready</div>
+          <div class="status-card-sub">Auto-activates in game</div>
+        </div>
+      </div>
+
+      <div class="home-tip">
+        <strong>Tip:</strong> The overlay activates automatically when champion select starts. Press <strong>Ctrl+Shift+G</strong> to toggle it during a game.
+      </div>
     </div>
-    <div class="title-bar-controls">
-      <button class="tb-btn" title="Minimize" onclick="minimizeWindow()">&#x2013;</button>
-      <button class="tb-btn close" title="Close" onclick="closeWindow()">&#x2715;</button>
+
+    <!-- ── ROLES ── -->
+    <div class="screen" id="screen-roles">
+      <div class="section-title" style="margin-bottom:12px;">Choose a Role</div>
+      <div class="roles-grid" id="rolesGrid"><!-- filled by JS --></div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="screen" id="screen-settings">
+      <div class="section-title" style="margin-bottom:12px;">Settings</div>
+
+      <div class="settings-tabs">
+        <button class="settings-tab active" onclick="switchSettingsTab('app', this)">App</button>
+        <button class="settings-tab" onclick="switchSettingsTab('game', this)">Game Settings</button>
+      </div>
+
+      <!-- App settings tab -->
+      <div class="tab-pane active" id="tab-app">
+        <div class="settings-group">
+          <div class="sg-title">Hotkeys</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Toggle app</div><div class="setting-desc">Show / hide this window</div></div>
+            <div class="setting-control"><div class="kbd-field">Ctrl+Shift+L</div></div>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Toggle in-game guide</div><div class="setting-desc">Show / hide overlay during game</div></div>
+            <div class="setting-control"><div class="kbd-field">Ctrl+Shift+G</div></div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="sg-title">Display</div>
+          <div class="setting-row">
+            <div><div class="setting-label">Ward reminders</div><div class="setting-desc">Pulse a reminder every ~90 sec to place a ward</div></div>
+            <div class="setting-control"><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Game phase tips</div><div class="setting-desc">Tips that update as the game moves through phases</div></div>
+            <div class="setting-control"><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Death review</div><div class="setting-desc">Brief tip overlay when you die</div></div>
+            <div class="setting-control"><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Tip rotation</div><div class="setting-desc">How often the tip card cycles</div></div>
+            <div class="setting-control">
+              <select class="settings-select">
+                <option>30 sec</option>
+                <option selected>60 sec</option>
+                <option>2 min</option>
+                <option>Manual</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="sg-title">Tracking</div>
+          <div class="setting-row">
+            <div><div class="setting-label">CS tracking</div><div class="setting-desc">Show CS-per-minute in the overlay</div></div>
+            <div class="setting-control"><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+          <div class="setting-row">
+            <div><div class="setting-label">Post-game recap</div><div class="setting-desc">Show summary panel after every match</div></div>
+            <div class="setting-control"><button class="toggle on" onclick="this.classList.toggle('on')"></button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommended game settings tab -->
+      <div class="tab-pane" id="tab-game">
+        <div class="notice-bar"><strong>Suggestions, not requirements.</strong> Each one explains the why so you understand the reason behind it.</div>
+
+        <div class="rec-group">
+          <div class="rec-header" onclick="toggleRec(this)">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Camera &amp; Display
+            <span class="rec-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+          </div>
+          <div class="rec-body">
+            <div class="rec-row"><div class="rec-setting">Camera lock</div><div class="rec-value">Unlocked</div><div class="rec-why">Lets you see more of the map. Harder at first but you'll react to threats much faster.</div></div>
+            <div class="rec-row"><div class="rec-setting">Minimap scale</div><div class="rec-value">Large</div><div class="rec-why">The minimap tells you where everyone is. Bigger means you're less likely to miss movement.</div></div>
+            <div class="rec-row"><div class="rec-setting">Floating damage text</div><div class="rec-value">On</div><div class="rec-why">Helps you understand how your champion scales as you buy items.</div></div>
+          </div>
+        </div>
+
+        <div class="rec-group">
+          <div class="rec-header" onclick="toggleRec(this)">
+            <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
+            Controls
+            <span class="rec-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+          </div>
+          <div class="rec-body">
+            <div class="rec-row"><div class="rec-setting">Attack move</div><div class="rec-value">A + Click</div><div class="rec-why">Tells your champion to attack the nearest enemy automatically — essential for ADC players.</div></div>
+            <div class="rec-row"><div class="rec-setting">Quick cast</div><div class="rec-value">Later, not now</div><div class="rec-why">Start on normal cast and switch when you feel confident with your abilities.</div></div>
+          </div>
+        </div>
+
+        <div class="rec-group">
+          <div class="rec-header" onclick="toggleRec(this)">
+            <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+            Sound &amp; Interface
+            <span class="rec-chevron"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+          </div>
+          <div class="rec-body">
+            <div class="rec-row"><div class="rec-setting">Ally chat</div><div class="rec-value">Muted (optional)</div><div class="rec-why">As a new player, chat is often more distracting than helpful. Focus on the game first.</div></div>
+            <div class="rec-row"><div class="rec-setting">Announce pings</div><div class="rec-value">On</div><div class="rec-why">Your teammates communicate almost entirely through pings. Never miss a callout.</div></div>
+            <div class="rec-row"><div class="rec-setting">Allied HP bars</div><div class="rec-value">Always visible</div><div class="rec-why">Lets you see teammate health at a glance — important for knowing when to peel.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <!-- ── BOTTOM NAV ── -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-home" onclick="goScreen('home', this)">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="nav-item" id="nav-roles" onclick="goScreen('roles', this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Roles
+    </button>
+    <button class="nav-item" id="nav-settings" onclick="goScreen('settings', this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+  </nav>
+</div><!-- /shell -->
+
+<!-- ── ROLE DETAIL MODAL ── -->
+<div class="modal-backdrop" id="roleModal">
+  <div class="modal-panel">
+    <div class="modal-titlebar" id="modalTitlebar"><!-- filled by JS --></div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeSimple" onclick="setMode('simple')">Simple</button>
+      <button class="mode-btn" id="modeDetailed" onclick="setMode('detailed')">Detailed</button>
+    </div>
+    <div class="modal-body" id="modalBody"><!-- filled by JS --></div>
+    <div class="modal-footer">
+      <div class="modal-footer-note" id="modalFooterNote"></div>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" id="modalQuestBtn">Set as Quest</button>
     </div>
   </div>
+</div>
 
-  <!-- Content -->
-  <div class="content">
-    <!--
-      MIGRATION STATUS: Prototype UI goes here.
+<script src="../../js/constants.js"></script>
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+window._activeQuest = null;   // role key player is learning
+window._currentModal = null;  // role key open in modal
+window._mode = 'simple';      // 'simple' | 'detailed'
 
-      Next step: copy the <style> block and screen divs from
-      prototype/laneup-prototype.html into this file, then wire up
-      the overwolf.windows.sendMessage listener below to handle
-      MATCH_START / MATCH_END events from background.js.
+// ── ROLE DATA ──────────────────────────────────────────────────────────────
+const ROLES = {
+  top: {
+    name: 'Top Lane',
+    iconBg: 'icon-bg-orange', iconCol: 'icon-col-orange',
+    iconPath: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    tags: ['<span class="tag tag-orange">Medium</span>', '<span class="tag tag-muted">Top Lane</span>'],
+    summary: 'The isolated 1v1 lane. Top laners duel for lane control, split-push to create map pressure, and eventually become the team\'s frontline tank or bruiser.',
+    isStub: true,
+    job: [
+      { title: 'Win your lane', desc: 'Top is a 1v1 battle. Focus on farming minions safely, trade when you have an advantage, and avoid getting caught by the enemy jungler.' },
+      { title: 'Use Teleport wisely', desc: 'Most top laners have Teleport. Use it to get back to lane quickly after recalling, or teleport to a fight near Dragon or Bot lane when it matters.' },
+      { title: 'Become the frontline', desc: 'In teamfights, top laners usually absorb damage. Walk in first so your carries can attack safely from behind you.' },
+    ],
+    phases: [
+      { label: 'Early Game', time: '0 – 14 min', cls: 'phase-early', desc: 'Farm safely. Avoid extended trades if you\'re unsure of the matchup. Ward the river bush near your lane to spot the enemy jungler coming.' },
+      { label: 'Mid Game',   time: '14 – 25 min', cls: 'phase-mid',   desc: 'After getting items, look for chances to use Teleport to join fights near Dragon. Or push your lane hard to force the enemy to respond to you.' },
+      { label: 'Late Game',  time: '25+ min',     cls: 'phase-late',  desc: 'Group with your team for Baron. In teamfights, walk toward the enemy frontline and peel the assassins away from your carries.' },
+    ],
+    fightGo: [
+      'Your Teleport is available',
+      'You\'re ahead in items or level',
+      'The enemy top is at low health',
+      'Your team already has vision nearby',
+    ],
+    fightNo: [
+      'You\'re split pushing far from your team',
+      'Your Teleport is on cooldown',
+      'The enemy jungler position is unknown',
+      'You\'re behind in items and would lose the trade',
+    ],
+    footerNote: ''
+  },
 
-      For now, showing a placeholder so the window renders correctly
-      and can be tested inside Overwolf.
-    -->
-    <div class="placeholder">
-      <div class="badge">Desktop Window</div>
-      <h2>LaneUp is running</h2>
-      <p>
-        This window will host the role guide and home screen.<br><br>
-        During champion select, the in-game overlay activates automatically.<br><br>
-        Press <strong>Ctrl+Shift+L</strong> to toggle this window.
-      </p>
+  jungle: {
+    name: 'Jungle',
+    iconBg: 'icon-bg-red', iconCol: 'icon-col-red',
+    iconPath: '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    tags: ['<span class="tag tag-red">Hard</span>', '<span class="tag tag-muted">Whole Map</span>'],
+    summary: 'The jungler roams the entire map, farming jungle camps for gold and XP while looking for opportunities to gank lanes and contest major objectives like Dragon and Baron.',
+    isStub: true,
+    job: [
+      { title: 'Clear your camps', desc: 'Start by farming jungle monsters in an efficient order. Each camp gives gold and XP. A good clear lets you gank sooner and stay healthy.' },
+      { title: 'Gank when lanes are ready', desc: 'A gank is worth it when your laner has crowd control, the enemy is pushed toward your side, and your laner is healthy. A bad gank just wastes your time.' },
+      { title: 'Control objectives', desc: 'Dragon, Baron, and Rift Herald are more important than kills. Always have Smite ready near major objectives and ward around them before you start.' },
+    ],
+    phases: [
+      { label: 'Early Game', time: '0 – 14 min', cls: 'phase-early', desc: 'Clear your camps efficiently. Identify which lanes are good gank targets. Contest Scuttlecrab for vision and movement speed in the river.' },
+      { label: 'Mid Game',   time: '14 – 25 min', cls: 'phase-mid',   desc: 'Stack Dragons. Set up vision around Dragon and Baron before fighting. Counter-jungle when you know where the enemy jungler is.' },
+      { label: 'Late Game',  time: '25+ min',     cls: 'phase-late',  desc: 'Baron Nashor and Elder Dragon usually decide the game. Secure these with Smite. Peel for your carries in teamfights.' },
+    ],
+    fightGo: [
+      'The lane you\'re ganking has crowd control',
+      'Your laners are healthy enough to follow up',
+      'You have vision of the enemy jungler elsewhere',
+      'The enemy is overextended past midpoint of the lane',
+    ],
+    fightNo: [
+      'The enemy has a ward and can see you coming',
+      'Your Smite is on cooldown near an objective',
+      'The enemy jungler is ahead in levels',
+      'Your laners are too far back to follow up',
+    ],
+    footerNote: 'Jungle is the hardest role — most new players should try Support or Top first.'
+  },
+
+  mid: {
+    name: 'Mid Lane',
+    iconBg: 'icon-bg-amber', iconCol: 'icon-col-amber',
+    iconPath: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    tags: ['<span class="tag tag-orange">Medium</span>', '<span class="tag tag-muted">Mid Lane</span>'],
+    summary: 'The center of the map. Mid laners need to win their lane and then roam to either side to influence bot or top lane. You\'re the pivot point of the whole team.',
+    isStub: true,
+    job: [
+      { title: 'Control your wave', desc: 'Push the wave into the enemy tower before you roam so you don\'t lose minions while you\'re gone. This is called "shoving before roaming."' },
+      { title: 'Roam to help other lanes', desc: 'When you have priority in lane (enemy is pushed back or recalled), roam bot or top to help your team get kills or Dragon.' },
+      { title: 'Ward both river entrances', desc: 'Mid lane is flanked by two river paths. Ward both sides to avoid getting ganked by the enemy jungler.' },
+    ],
+    phases: [
+      { label: 'Early Game', time: '0 – 14 min', cls: 'phase-early', desc: 'Farm safely, poke when you\'re ahead. Ward both river bushes to avoid ganks. Watch the minimap constantly for enemy jungler movement.' },
+      { label: 'Mid Game',   time: '14 – 25 min', cls: 'phase-mid',   desc: 'Shove your wave then roam to Dragon or a side lane. After helping get a kill or objective, reset back to mid lane quickly.' },
+      { label: 'Late Game',  time: '25+ min',     cls: 'phase-late',  desc: 'Group with your team for Baron fights. Don\'t solo split-push unless you have a strong champion for it.' },
+    ],
+    fightGo: [
+      'You have lane priority and can leave without losing minions',
+      'Your wave is shoved in and you have time to roam',
+      'The enemy mid is recalled or dead',
+      'Your team has vision of threats nearby',
+    ],
+    fightNo: [
+      'You\'re behind in CS and need to catch up',
+      'Your wave is crashing into your tower',
+      'The enemy jungler position is unknown',
+      'Your key ability is on a long cooldown',
+    ],
+    footerNote: ''
+  },
+
+  bot: {
+    name: 'Bot Lane (ADC)',
+    iconBg: 'icon-bg-blue', iconCol: 'icon-col-blue',
+    iconPath: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+    tags: ['<span class="tag tag-orange">Medium–Hard</span>', '<span class="tag tag-muted">Bot Lane</span>'],
+    summary: 'The ranged carry. Your job in the early game is to farm as much gold as possible so you can buy items and become the team\'s primary source of sustained damage in the mid and late game.',
+    isStub: false,
+    job: [
+      { title: 'Farm minions — it\'s your #1 job', desc: 'CS (creep score) is your main income. Target 6–7 CS per minute. Every minion you miss is gold you won\'t have for items later in the game.' },
+      { title: 'Stay in the backline', desc: 'ADCs are squishy and die fast. In fights, stay behind your frontline and auto-attack from a safe distance. Step back if enemies jump on you.' },
+      { title: 'Scale with items', desc: 'You\'re weak early but powerful late. It\'s okay to play safe early — with 2–3 items you\'ll be one of the strongest players in the game.' },
+    ],
+    phases: [
+      { label: 'Early Game', time: '0 – 14 min', cls: 'phase-early', desc: 'Farm safely. Let your support initiate trades. Focus on hitting CS targets and avoiding risky fights unless you\'re clearly ahead.' },
+      { label: 'Mid Game',   time: '14 – 25 min', cls: 'phase-mid',   desc: 'With 1–2 items you start doing real damage. Group for Dragon fights. Keep farming between objectives.' },
+      { label: 'Late Game',  time: '25+ min',     cls: 'phase-late',  desc: 'Never walk alone. In teamfights auto-attack the nearest safe target and kite backward if enemies approach you.' },
+    ],
+    fightGo: [
+      'You have 2+ items and feel strong',
+      'Your support has crowd control available',
+      'The enemy frontline is already low',
+      'You have enough space to kite backward',
+    ],
+    fightNo: [
+      'You\'re caught in the enemy backline with no escape',
+      'You have fewer than 2 items',
+      'Your support is dead or far away',
+      'An assassin like Zed or Talon is nearby and unaccounted for',
+    ],
+    footerNote: 'ADC is mechanically demanding. Support is recommended for brand new players.'
+  },
+
+  support: {
+    name: 'Support',
+    iconBg: 'icon-bg-green', iconCol: 'icon-col-green',
+    iconPath: '<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>',
+    tags: ['<span class="tag tag-green">Best for Beginners</span>', '<span class="tag tag-muted">Bot Lane</span>'],
+    summary: 'Protect your carry, control vision across the map, and use crowd control to set up fights for your team. You don\'t need to farm minions — your job is to make your teammates better.',
+    isStub: false,
+    job: [
+      { title: 'Keep your ADC alive', desc: 'In the early game your primary job is making sure your bot laner can farm safely. Use your abilities to shield, heal, or remove enemies from them.' },
+      { title: 'Vision is your superpower', desc: 'Buy a Control Ward every time you back to base — no exceptions. Ward the river bushes before 1:30 to spot enemy movement before the first fights start.' },
+      { title: 'Roam in the mid game', desc: 'Once laning phase slows down around 14 minutes, move with your team toward Dragon and Baron. Your heals and crowd control help everyone.' },
+    ],
+    phases: [
+      { label: 'Early Game', time: '0 – 14 min', cls: 'phase-early', desc: 'Stay close to your ADC. Poke when you\'re ahead, ward both river bushes, and don\'t chase kills into danger.' },
+      { label: 'Mid Game',   time: '14 – 25 min', cls: 'phase-mid',   desc: 'Roam toward Dragon. Place deep wards in the enemy jungle. Group up for fights and peel for your carries.' },
+      { label: 'Late Game',  time: '25+ min',     cls: 'phase-late',  desc: 'Never leave your carries alone. Baron and Elder Dragon usually decide the game. Stay grouped and protect your team.' },
+    ],
+    fightGo: [
+      'Your ADC is at full health',
+      'Your crowd control is off cooldown',
+      'Enemy jungler is visible elsewhere on the map',
+      'You have vision placed around the objective',
+    ],
+    fightNo: [
+      'Your ADC is low or out of position',
+      'Your key abilities are on cooldown',
+      'Enemy jungler is missing from the map',
+      'You have no vision near where the fight would happen',
+    ],
+    footerNote: 'Support is the recommended starting role for brand new players.'
+  }
+};
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────
+function goScreen(id, navBtn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  const btn = navBtn || document.getElementById('nav-' + id);
+  if (btn) btn.classList.add('active');
+  document.getElementById('screen-' + id).scrollTop = 0;
+}
+
+// ── ROLES GRID ─────────────────────────────────────────────────────────────
+function renderRolesGrid() {
+  const grid = document.getElementById('rolesGrid');
+  grid.innerHTML = Object.entries(ROLES).map(([key, r]) => {
+    const isActive = key === window._activeQuest;
+    return `
+      <div class="role-card${isActive ? ' active-quest' : ''}" onclick="openRole('${key}')">
+        ${isActive ? '<div class="active-badge"></div>' : ''}
+        <div class="role-card-icon ${r.iconBg} ${r.iconCol}">
+          <svg viewBox="0 0 24 24">${r.iconPath}</svg>
+        </div>
+        <div class="role-card-name">${r.name}</div>
+        <div class="role-card-diff">${r.tags[0]}</div>
+        <div class="role-card-summary">${r.summary.substring(0, 70)}…</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── HOME QUEST CARD ─────────────────────────────────────────────────────────
+function renderHomeQuest() {
+  const noCard   = document.getElementById('noQuestCard');
+  const questCard = document.getElementById('questCard');
+  const row = document.getElementById('questRoleRow');
+
+  if (!window._activeQuest || !ROLES[window._activeQuest]) {
+    noCard.style.display = '';
+    questCard.style.display = 'none';
+    return;
+  }
+  noCard.style.display = 'none';
+  questCard.style.display = '';
+  const r = ROLES[window._activeQuest];
+  row.innerHTML = `
+    <div class="hq-icon ${r.iconBg} ${r.iconCol}">
+      <svg viewBox="0 0 24 24">${r.iconPath}</svg>
     </div>
-  </div>
+    <div>
+      <div class="hq-name">${r.name}</div>
+      <div class="hq-desc">${r.summary.substring(0, 80)}…</div>
+    </div>
+  `;
+}
 
-  <script src="../../js/constants.js"></script>
-  <script>
-    // ── Window controls ──────────────────────────────────────────────────────
-    function minimizeWindow() {
-      overwolf.windows.getCurrentWindow(r => {
-        overwolf.windows.minimize(r.window.id, () => {});
-      });
-    }
+// ── ROLE MODAL ─────────────────────────────────────────────────────────────
+function openRole(key) {
+  const r = ROLES[key];
+  if (!r) return;
+  window._currentModal = key;
 
-    function closeWindow() {
-      overwolf.windows.getCurrentWindow(r => {
-        overwolf.windows.close(r.window.id, () => {});
-      });
-    }
+  // Title bar
+  document.getElementById('modalTitlebar').innerHTML = `
+    <div class="modal-icon ${r.iconBg} ${r.iconCol}">
+      <svg viewBox="0 0 24 24">${r.iconPath}</svg>
+    </div>
+    <div class="modal-title-text">
+      <h2>${r.name}</h2>
+      <div class="modal-tags">${r.tags.join('')}</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  `;
 
-    // ── Messages from background.js ──────────────────────────────────────────
-    overwolf.windows.onMessageReceived.addListener(msg => {
-      switch (msg.id) {
-        case 'MATCH_START':
-          // TODO: reset session stats, start new game tracking
-          console.log('[Desktop] Match started');
-          break;
-        case 'MATCH_END':
-          // TODO: show post-game summary
-          console.log('[Desktop] Match ended', msg.content);
-          break;
-      }
-    });
+  // Quest button
+  const qBtn = document.getElementById('modalQuestBtn');
+  if (key === window._activeQuest) {
+    qBtn.textContent = '✓ Current Quest';
+    qBtn.disabled = true;
+    qBtn.style.opacity = '.5';
+  } else {
+    qBtn.textContent = 'Set as Quest';
+    qBtn.disabled = false;
+    qBtn.style.opacity = '';
+    qBtn.onclick = () => setQuest(key);
+  }
 
-    // ── Drag-to-move (title bar is handled by -webkit-app-region: drag) ──────
-    // Overwolf also supports overwolf.windows.dragMove() for finer control
-    // if needed.
-  </script>
+  // Footer note
+  document.getElementById('modalFooterNote').textContent = r.footerNote || '';
+
+  // Render body in current mode
+  setMode(window._mode, false);
+
+  document.getElementById('roleModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('roleModal').classList.remove('open');
+  window._currentModal = null;
+}
+
+function setMode(mode, render) {
+  window._mode = mode;
+  document.getElementById('modeSimple').classList.toggle('active', mode === 'simple');
+  document.getElementById('modeDetailed').classList.toggle('active', mode === 'detailed');
+  if (render !== false) renderModalBody();
+}
+
+function renderModalBody() {
+  const key = window._currentModal;
+  if (!key) return;
+  const r = ROLES[key];
+  const body = document.getElementById('modalBody');
+
+  const summaryHTML = `<div class="role-summary">${r.summary}</div>`;
+
+  if (window._mode === 'simple') {
+    const jobsHTML = r.job.map((j, i) => `
+      <div class="job-item">
+        <div class="job-num">${i + 1}</div>
+        <div class="job-text">
+          <h4>${j.title}</h4>
+          <p>${j.desc}</p>
+        </div>
+      </div>
+    `).join('');
+    body.innerHTML = summaryHTML + jobsHTML;
+  } else {
+    // Detailed view
+    const phasesHTML = r.phases.map(p => `
+      <div class="phase-row ${p.cls}">
+        <div class="phase-label">
+          <span>${p.label}</span>
+          <span class="phase-time">${p.time}</span>
+        </div>
+        <div class="phase-desc">${p.desc}</div>
+      </div>
+    `).join('');
+
+    const goHTML = r.fightGo.map(t => `
+      <div class="fight-item"><div class="fight-dot go"></div>${t}</div>
+    `).join('');
+    const noHTML = r.fightNo.map(t => `
+      <div class="fight-item"><div class="fight-dot no"></div>${t}</div>
+    `).join('');
+
+    const stubHTML = r.isStub ? `<div class="stub-notice">⚠ Some content in this guide is still being written.</div>` : '';
+
+    body.innerHTML = summaryHTML + stubHTML + `
+      <div class="section-head">Game Phases</div>
+      ${phasesHTML}
+      <div class="section-head">When to Fight</div>
+      <div class="fight-grid">
+        <div>
+          <div class="fight-col-head go">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Go
+          </div>
+          ${goHTML}
+        </div>
+        <div>
+          <div class="fight-col-head no">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Avoid
+          </div>
+          ${noHTML}
+        </div>
+      </div>
+    `;
+  }
+}
+
+// ── QUEST ──────────────────────────────────────────────────────────────────
+function setQuest(key) {
+  window._activeQuest = key;
+  renderHomeQuest();
+  renderRolesGrid();
+  const qBtn = document.getElementById('modalQuestBtn');
+  qBtn.textContent = '✓ Current Quest';
+  qBtn.disabled = true;
+  qBtn.style.opacity = '.5';
+  // TODO: persist to overwolf.settings or localStorage when in production
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────────────────
+function switchSettingsTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function toggleRec(header) {
+  const body    = header.nextElementSibling;
+  const chevron = header.querySelector('.rec-chevron svg');
+  const isOpen  = !body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', isOpen);
+  chevron.style.transform = isOpen ? 'rotate(-90deg)' : '';
+}
+
+// ── WINDOW CONTROLS ────────────────────────────────────────────────────────
+function minimizeWindow() {
+  overwolf.windows.getCurrentWindow(r => overwolf.windows.minimize(r.window.id, () => {}));
+}
+function closeWindow() {
+  overwolf.windows.getCurrentWindow(r => overwolf.windows.close(r.window.id, () => {}));
+}
+
+// ── MESSAGES FROM BACKGROUND ───────────────────────────────────────────────
+overwolf.windows.onMessageReceived.addListener(msg => {
+  switch (msg.id) {
+    case 'MATCH_START':
+      console.log('[Desktop] Match started');
+      break;
+    case 'MATCH_END':
+      console.log('[Desktop] Match ended', msg.content);
+      // TODO: show post-game summary screen
+      break;
+  }
+});
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+renderRolesGrid();
+renderHomeQuest();
+</script>
 </body>
 </html>
