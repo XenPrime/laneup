@@ -1319,24 +1319,30 @@ function toggleRec(header) {
 
 // ── WINDOW CONTROLS ────────────────────────────────────────────────────────
 function minimizeWindow() {
-  overwolf.windows.getCurrentWindow(r => overwolf.windows.minimize(r.window.id, () => {}));
+  if (typeof overwolf !== 'undefined') {
+    overwolf.windows.getCurrentWindow(r => overwolf.windows.minimize(r.window.id, () => {}));
+  }
 }
 function closeWindow() {
-  overwolf.windows.getCurrentWindow(r => overwolf.windows.close(r.window.id, () => {}));
+  if (typeof overwolf !== 'undefined') {
+    overwolf.windows.getCurrentWindow(r => overwolf.windows.close(r.window.id, () => {}));
+  }
 }
 
 // ── MESSAGES FROM BACKGROUND ───────────────────────────────────────────────
-overwolf.windows.onMessageReceived.addListener(msg => {
-  switch (msg.id) {
-    case 'MATCH_START':
-      console.log('[Desktop] Match started');
-      break;
-    case 'MATCH_END':
-      console.log('[Desktop] Match ended', msg.content);
-      // TODO: show post-game summary screen
-      break;
-  }
-});
+if (typeof overwolf !== 'undefined') {
+  overwolf.windows.onMessageReceived.addListener(msg => {
+    switch (msg.id) {
+      case 'MATCH_START':
+        console.log('[Desktop] Match started');
+        break;
+      case 'MATCH_END':
+        console.log('[Desktop] Match ended', msg.content);
+        // TODO: show post-game summary screen
+        break;
+    }
+  });
+}
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 renderRolesGrid();
