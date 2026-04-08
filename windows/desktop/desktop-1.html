@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LaneUp</title>
+<!--
+  LaneUp — Desktop Window
+  420 × 700px Overwolf overlay window.
+  Screens: Home (role picker), Guide, Settings.
+  The in-game overlay (champ select + death review) lives in windows/in-game/in-game.html.
+-->
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #08090d;
+  --surface:      #0d0f15;
+  --card:         #121520;
+  --card-hover:   #161a27;
+  --border:       #1c2030;
+  --border-up:    #252c40;
+  --text:         #dde1f0;
+  --muted:        #5a6382;
+  --dim:          #8892b0;
+
+  --blue:         #4f7fff;
+  --blue-bg:      rgba(79,127,255,.1);
+  --blue-border:  rgba(79,127,255,.25);
+
+  --amber:        #e8a020;
+  --amber-bg:     rgba(232,160,32,.08);
+  --amber-border: rgba(232,160,32,.2);
+
+  --green:        #2db87a;
+  --green-bg:     rgba(45,184,122,.08);
+  --green-border: rgba(45,184,122,.22);
+
+  --red:          #e05252;
+  --red-bg:       rgba(224,82,82,.08);
+  --red-border:   rgba(224,82,82,.22);
+
+  --orange:       #e07c30;
+  --orange-bg:    rgba(224,124,48,.08);
+  --orange-border:rgba(224,124,48,.22);
+
+  --purple:       #9d6fff;
+  --purple-bg:    rgba(157,111,255,.1);
+  --purple-border:rgba(157,111,255,.25);
+
+  --radius-sm: 5px;
+  --radius:    8px;
+  --radius-lg: 12px;
+
+  --title-h: 36px;
+  --nav-h:   52px;
+}
+
+html, body {
+  width: 420px;
+  height: 700px;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-up); border-radius: 4px; }
+
+/* ── TITLE BAR ── */
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--title-h);
+  padding: 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.title-left { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .5px; }
+.title-logo { width: 18px; height: 18px; background: var(--blue); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #fff; }
+.title-controls { display: flex; gap: 4px; -webkit-app-region: no-drag; }
+.tb-btn { width: 28px; height: 28px; background: none; border: none; border-radius: 6px; cursor: pointer; color: var(--muted); font-size: 13px; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+.tb-btn:hover { background: var(--border); color: var(--text); }
+.tb-btn.close:hover { background: rgba(224,82,82,.2); color: #f87171; }
+
+/* ── SHELL ── */
+.shell { display: flex; flex-direction: column; height: calc(700px - var(--title-h)); }
+.screens { flex: 1; overflow: hidden; position: relative; }
+.screen { display: none; height: 100%; overflow-y: auto; padding: 16px; }
+.screen.active { display: block; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  height: var(--nav-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+.nav-item {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted);
+  font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase;
+  transition: color .15s;
+  border-top: 2px solid transparent;
+}
+.nav-item svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item.active { color: var(--blue); border-top-color: var(--blue); }
+.nav-item:hover:not(.active) { color: var(--text); }
+
+/* ── SHARED ── */
+.section-title { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.tag { display: inline-flex; align-items: center; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+.tag-green  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+.tag-blue   { background: var(--blue-bg);   color: var(--blue);   border: 1px solid var(--blue-border); }
+.tag-amber  { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber-border); }
+.tag-orange { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
+.tag-red    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-border); }
+.tag-muted  { background: var(--surface);   color: var(--muted);  border: 1px solid var(--border); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s, background .15s; }
+.btn:active { opacity: .8; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover { opacity: .9; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border-up); }
+.btn-full { width: 100%; justify-content: center; }
+
+/* ── HOME SCREEN ── */
+.home-header {
+  text-align: center;
+  padding: 24px 0 20px;
+}
+.home-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 6px; }
+.home-header p  { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+/* Active quest banner */
+.quest-banner {
+  display: none;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  align-items: center;
+  gap: 12px;
+}
+.quest-banner.show { display: flex; }
+.qb-icon { width: 34px; height: 34px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.qb-icon svg { width: 18px; height: 18px; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.qb-label { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--blue); margin-bottom: 2px; }
+.qb-name  { font-size: 13px; font-weight: 600; color: var(--text); }
+.qb-change { margin-left: auto; font-size: 11px; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+.qb-change:hover { color: var(--text); }
+
+/* Role picker grid */
+.role-picker-label { font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.role-grid { display: flex; flex-direction: column; gap: 8px; }
+
+.role-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  position: relative;
+}
+.role-row:hover { background: var(--card-hover); border-color: var(--border-up); }
+.role-row.active { border-color: var(--blue-border); background: var(--blue-bg); }
+
+.role-row-icon {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.role-row-icon svg { width: 18px; height: 18px; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-orange { background: rgba(224,124,48,.12); stroke: var(--orange); }
+.icon-red    { background: rgba(224,82,82,.12);  stroke: var(--red); }
+.icon-blue   { background: var(--blue-bg);       stroke: var(--blue); }
+.icon-green  { background: var(--green-bg);      stroke: var(--green); }
+.icon-purple { background: var(--purple-bg);     stroke: var(--purple); }
+
+.role-row-info { flex: 1; }
+.role-row-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.role-row-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.role-row-tags { display: flex; gap: 5px; margin-top: 4px; }
+
+.role-row-caret { color: var(--muted); flex-shrink: 0; }
+.role-row-caret svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.role-row.active .role-row-caret { color: var(--blue); }
+
+.active-dot {
+  width: 7px; height: 7px;
+  background: var(--blue);
+  border-radius: 50%;
+  position: absolute;
+  right: 14px; top: 50%;
+  transform: translateY(-50%);
+  display: none;
+}
+.role-row.active .active-dot { display: block; }
+.role-row.active .role-row-caret { display: none; }
+
+/* Settings strip */
+.settings-strip { margin-top: 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.ss-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.ss-row:last-of-type { border-bottom: none; }
+.ss-label { font-size: 11px; color: var(--dim); }
+.toggle-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--border-up); border-radius: 20px; cursor: pointer; transition: background .2s; }
+.toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+.toggle-switch input:checked + .toggle-slider { background: var(--blue); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+.dr-sim-btn { font-size: 10px; padding: 3px 10px; background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); border-radius: 20px; cursor: pointer; transition: background .15s; }
+.dr-sim-btn:hover { background: rgba(224,82,82,.18); }
+
+/* Disclaimer footer */
+.disclaimer {
+  margin-top: 16px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ── GUIDE SCREEN ── */
+.guide-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 80%; gap: 12px; text-align: center; color: var(--muted);
+}
+.guide-empty svg { width: 32px; height: 32px; stroke: var(--border-up); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.guide-empty p { font-size: 12px; line-height: 1.6; }
+
+.guide-role-header {
+  display: flex; align-items: center; gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.guide-role-icon { width: 48px; height: 48px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.guide-role-icon svg { width: 24px; height: 24px; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.guide-role-name { font-size: 17px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 3px; }
+.guide-role-sub  { font-size: 11px; color: var(--muted); }
+
+.guide-section { margin-bottom: 20px; }
+.guide-phase { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 6px; }
+.gp-label { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+.gp-label.early { color: var(--green); }
+.gp-label.mid   { color: var(--amber); }
+.gp-label.late  { color: var(--red); }
+.gp-desc  { font-size: 12px; color: var(--dim); line-height: 1.5; }
+
+.counter-group-label { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 7px; display: flex; align-items: center; gap: 5px; }
+.counter-group-label.hard { color: var(--red); }
+.counter-group-label.easy { color: var(--green); }
+.counter-group-label svg  { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.counter-card { display: flex; gap: 10px; padding: 8px 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 5px; }
+.counter-card.hard { border-left: 2px solid var(--red); }
+.counter-card.easy { border-left: 2px solid var(--green); }
+.counter-champ { font-size: 11px; font-weight: 700; min-width: 72px; padding-top: 1px; }
+.counter-champ.hard { color: var(--red); }
+.counter-champ.easy { color: var(--green); }
+.counter-tip { font-size: 11px; color: var(--dim); line-height: 1.45; }
+
+/* ── SUMMARY SCREEN ── */
+.summary-header {
+  text-align: center;
+  padding: 20px 0 16px;
+}
+.summary-trophy { font-size: 32px; margin-bottom: 10px; }
+.summary-header h2 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 4px; }
+.summary-header p  { font-size: 12px; color: var(--muted); }
+
+.kda-row {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.kda-cell {
+  flex: 1;
+  text-align: center;
+  padding: 14px 8px;
+  border-right: 1px solid var(--border);
+}
+.kda-cell:last-child { border-right: none; }
+.kda-val   { font-size: 22px; font-weight: 700; letter-spacing: -.5px; margin-bottom: 3px; }
+.kda-label { font-size: 10px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.kda-val.kills   { color: var(--green); }
+.kda-val.deaths  { color: var(--red); }
+.kda-val.assists { color: var(--amber); }
+
+.perf-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  margin-bottom: 14px;
+}
+.perf-card.great  { background: var(--green-bg);  border-color: var(--green-border); }
+.perf-card.good   { background: var(--blue-bg);   border-color: var(--blue-border); }
+.perf-card.okay   { background: var(--amber-bg);  border-color: var(--amber-border); }
+.perf-card.tough  { background: var(--red-bg);    border-color: var(--red-border); }
+.perf-icon  { font-size: 20px; flex-shrink: 0; }
+.perf-rating { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.perf-rating.great  { color: var(--green); }
+.perf-rating.good   { color: var(--blue); }
+.perf-rating.okay   { color: var(--amber); }
+.perf-rating.tough  { color: var(--red); }
+.perf-sub    { font-size: 11px; color: var(--muted); }
+
+.tip-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.tip-card-label { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--blue); margin-bottom: 5px; }
+.tip-card-text  { font-size: 12px; color: var(--dim); line-height: 1.55; }
+
+.summary-hidden { display: none; }
+
+/* ── SETTINGS SCREEN ── */
+.settings-group { margin-bottom: 20px; }
+.settings-group .section-title { margin-bottom: 8px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); }
+.settings-row:first-of-type { border-radius: var(--radius) var(--radius) 0 0; }
+.settings-row:last-of-type  { border-radius: 0 0 var(--radius) var(--radius); border-top: none; }
+.settings-row:only-of-type  { border-radius: var(--radius); }
+.settings-row + .settings-row { border-top: none; }
+.sr-label { font-size: 12px; font-weight: 500; color: var(--text); }
+.sr-sub   { font-size: 11px; color: var(--muted); margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<!-- TITLE BAR -->
+<div class="title-bar">
+  <div class="title-left">
+    <div class="title-logo">L</div>
+    LaneUp
+  </div>
+  <div class="title-controls">
+    <button class="tb-btn" onclick="minimizeWin()">&#x2013;</button>
+    <button class="tb-btn close" onclick="closeWin()">&#x2715;</button>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="screens">
+
+    <!-- ══ HOME SCREEN ══ -->
+    <div class="screen active" id="screen-home">
+
+      <div class="home-header">
+        <h1>Pick your role</h1>
+        <p>Choose the role you want to learn first.<br>LaneUp will guide you through every game.</p>
+      </div>
+
+      <!-- Active quest banner (shown after picking) -->
+      <div class="quest-banner" id="questBanner">
+        <div class="qb-icon" id="qbIcon"></div>
+        <div>
+          <div class="qb-label">Active quest</div>
+          <div class="qb-name" id="qbName">—</div>
+        </div>
+        <div class="qb-change" onclick="clearQuest()">Change</div>
+      </div>
+
+      <!-- Role picker -->
+      <div class="role-picker-label" id="rolePickerLabel">Choose a role to start</div>
+      <div class="role-grid">
+
+        <div class="role-row" id="rr-top" onclick="selectRole('top')">
+          <div class="role-row-icon icon-orange">
+            <svg class="icon-orange" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="role-row-info">
+            <div class="role-row-name">Top Lane</div>
+            <div class="role-row-desc">The solo island. Win your 1v1 and control the map.</div>
+            <div class="role-row-tags">
+              <span class="tag tag-orange">Solo</span>
+              <span class="tag tag-muted">Medium–Hard</span>
+            </div>
+          </div>
+          <div class="active-dot"></div>
+          <div class="role-row-caret"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+
+        <div class="role-row" id="rr-jungle" onclick="selectRole('jungle')">
+          <div class="role-row-icon icon-red">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+          </div>
+          <div class="role-row-info">
+            <div class="role-row-name">Jungle</div>
+            <div class="role-row-desc">Roam the map, take objectives, and create plays.</div>
+            <div class="role-row-tags">
+              <span class="tag tag-red">High impact</span>
+              <span class="tag tag-muted">Hard</span>
+            </div>
+          </div>
+          <div class="active-dot"></div>
+          <div class="role-row-caret"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+
+        <div class="role-row" id="rr-mid" onclick="selectRole('mid')">
+          <div class="role-row-icon icon-blue">
+            <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="role-row-info">
+            <div class="role-row-name">Mid Lane</div>
+            <div class="role-row-desc">Control the center. Roam to impact every lane.</div>
+            <div class="role-row-tags">
+              <span class="tag tag-blue">Flexible</span>
+              <span class="tag tag-muted">Medium</span>
+            </div>
+          </div>
+          <div class="active-dot"></div>
+          <div class="role-row-caret"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+
+        <div class="role-row" id="rr-bot" onclick="selectRole('bot')">
+          <div class="role-row-icon icon-green">
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+          <div class="role-row-info">
+            <div class="role-row-name">Bot Lane (ADC)</div>
+            <div class="role-row-desc">Farm safely, scale up, and carry the late game.</div>
+            <div class="role-row-tags">
+              <span class="tag tag-green">Late game</span>
+              <span class="tag tag-muted">Medium</span>
+            </div>
+          </div>
+          <div class="active-dot"></div>
+          <div class="role-row-caret"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+
+        <div class="role-row" id="rr-support" onclick="selectRole('support')">
+          <div class="role-row-icon icon-purple">
+            <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          </div>
+          <div class="role-row-info">
+            <div class="role-row-name">Support</div>
+            <div class="role-row-desc">Protect your team, set up plays, and control vision.</div>
+            <div class="role-row-tags">
+              <span class="tag tag-amber">Team-first</span>
+              <span class="tag tag-muted">Beginner friendly</span>
+            </div>
+          </div>
+          <div class="active-dot"></div>
+          <div class="role-row-caret"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+
+      </div><!-- /role-grid -->
+
+      <!-- Settings toggles -->
+      <div class="settings-strip" style="margin-top:16px;">
+        <div class="ss-row">
+          <span class="ss-label">Simple Mode</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="simpleModeToggle" onchange="setSimpleMode(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="ss-row">
+          <span class="ss-label">Death Review</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="deathReviewToggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="ss-row">
+          <span class="ss-label" style="color:var(--muted);">Test death overlay</span>
+          <button class="dr-sim-btn">Simulate</button>
+        </div>
+      </div>
+
+      <!-- Riot disclaimer -->
+      <div class="disclaimer">
+        LaneUp isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+      </div>
+
+    </div><!-- /screen-home -->
+
+    <!-- ══ GUIDE SCREEN ══ -->
+    <div class="screen" id="screen-guide">
+      <div class="guide-empty" id="guideEmpty">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <p>Pick a role on the Home tab<br>to see your guide here.</p>
+      </div>
+      <div id="guideContent" style="display:none;"></div>
+    </div>
+
+    <!-- ══ SETTINGS SCREEN ══ -->
+    <div class="screen" id="screen-settings">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:4px;">Settings</h2>
+        <p style="font-size:12px;color:var(--muted);">Manage your LaneUp preferences.</p>
+      </div>
+
+      <div class="settings-group">
+        <div class="section-title">Display</div>
+        <div class="settings-row">
+          <div>
+            <div class="sr-label">Simple Mode</div>
+            <div class="sr-sub">Show shorter, beginner-friendly tips</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="simpleModeSettings">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="section-title">In-game</div>
+        <div class="settings-row">
+          <div>
+            <div class="sr-label">Death Review</div>
+            <div class="sr-sub">Show tips when you die in-game</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="deathReviewSettings" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="sr-label">Champ Select Overlay</div>
+            <div class="sr-sub">Auto-show guide in champion select</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="champSelectToggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="section-title">Hotkeys</div>
+        <div class="settings-row">
+          <div>
+            <div class="sr-label">Toggle app</div>
+            <div class="sr-sub">Show / hide this window</div>
+          </div>
+          <span style="font-size:11px;color:var(--muted);font-family:monospace;">Ctrl+Shift+L</span>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="sr-label">Toggle in-game overlay</div>
+            <div class="sr-sub">Show / hide champ select panel</div>
+          </div>
+          <span style="font-size:11px;color:var(--muted);font-family:monospace;">Ctrl+Shift+G</span>
+        </div>
+      </div>
+
+      <div class="disclaimer">
+        LaneUp isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc.
+      </div>
+    </div><!-- /screen-settings -->
+
+    <!-- ══ SUMMARY SCREEN ══ -->
+    <div class="screen" id="screen-summary">
+
+      <div class="summary-header">
+        <div class="summary-trophy" id="summaryTrophy">🏆</div>
+        <h2 id="summaryTitle">Match Over</h2>
+        <p id="summarySubtitle">Here's how your game went</p>
+      </div>
+
+      <!-- KDA row -->
+      <div class="kda-row">
+        <div class="kda-cell">
+          <div class="kda-val kills" id="summaryKills">—</div>
+          <div class="kda-label">Kills</div>
+        </div>
+        <div class="kda-cell">
+          <div class="kda-val deaths" id="summaryDeaths">—</div>
+          <div class="kda-label">Deaths</div>
+        </div>
+        <div class="kda-cell">
+          <div class="kda-val assists" id="summaryAssists">—</div>
+          <div class="kda-label">Assists</div>
+        </div>
+      </div>
+
+      <!-- Performance rating -->
+      <div class="perf-card" id="perfCard">
+        <div class="perf-icon" id="perfIcon">⭐</div>
+        <div>
+          <div class="perf-rating" id="perfRating">—</div>
+          <div class="perf-sub"   id="perfSub">—</div>
+        </div>
+      </div>
+
+      <!-- Next-game tip -->
+      <div class="tip-card" id="summaryTipCard">
+        <div class="tip-card-label">&#128161; Tip for next game</div>
+        <div class="tip-card-text" id="summaryTip">—</div>
+      </div>
+
+      <button class="btn btn-primary btn-full" onclick="showScreen('home')" style="margin-bottom:14px;">
+        Back to Home
+      </button>
+
+      <div class="disclaimer">
+        LaneUp isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties.
+      </div>
+
+    </div><!-- /screen-summary -->
+
+  </div><!-- /screens -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-home" onclick="showScreen('home')">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="nav-item" id="nav-guide" onclick="showScreen('guide')">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Guide
+    </button>
+    <button class="nav-item summary-hidden" id="nav-summary" onclick="showScreen('summary')">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Last Match
+    </button>
+    <button class="nav-item" id="nav-settings" onclick="showScreen('settings')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Settings
+    </button>
+  </nav>
+</div><!-- /shell -->
+
+<script src="../../js/constants.js"></script>
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let _activeRole  = null;
+  let _simpleMode  = false;
+
+  const ROLE_DATA = {
+    top: {
+      name: 'Top Lane', icon: 'orange', iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+      desc: 'The solo island. Win your 1v1 and control the map.',
+      phases: [
+        { label: 'Early', cls: 'early', desc: 'Farm safely and only trade when you have the HP or level advantage. Respect level 2 and 3 power spikes.' },
+        { label: 'Mid',   cls: 'mid',   desc: 'Split push or group for objectives. Place wards in river and enemy jungle to avoid getting caught.' },
+        { label: 'Late',  cls: 'late',  desc: 'Join teamfights or continue split pushing. Know when your 1v1 threat draws enemies away from objectives.' },
+      ],
+      beginners: {
+        easy: [
+          { champ: 'Garen',     tip: 'No mana, very forgiving. Q → E → R is all you need. Great first top laner.' },
+          { champ: 'Malphite',  tip: 'Pure tank with a game-changing ult. Just build armor and press R into 2+ enemies.' },
+          { champ: 'Nasus',     tip: 'One goal: stack Q on minions every wave. Simple scaling win condition.' },
+          { champ: 'Maokai',    tip: 'Extremely tanky with built-in healing. Hard to kill and easy to build items on.' },
+          { champ: 'Cho\'Gath', tip: 'Gets bigger and tankier every time you last-hit with R. Very forgiving and durable.' },
+        ],
+        hard: [
+          { champ: 'Riven',      tip: 'Requires animation cancels and precise combo chains. Feels weak until fully mastered.' },
+          { champ: 'Fiora',      tip: 'Precise Riposte timing and Vital positioning are punishing to learn from scratch.' },
+          { champ: 'Gangplank',  tip: 'Barrel chains need precise timing. Global ult requires constant map awareness.' },
+          { champ: 'Camille',    tip: 'Wall-hop direction is tricky and punishable if missed. High skill floor.' },
+          { champ: 'Irelia',     tip: 'Stack management and precise dash ordering are deceptively complex to master.' },
+        ]
+      }
+    },
+    jungle: {
+      name: 'Jungle', icon: 'red', iconPath: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+      desc: 'Roam the map, take objectives, and create plays for your team.',
+      phases: [
+        { label: 'Early', cls: 'early', desc: 'Clear your camps efficiently. Look for early gank windows when enemies are pushed up or have no escapes.' },
+        { label: 'Mid',   cls: 'mid',   desc: 'Contest dragon and rift herald. Track the enemy jungler on the minimap and counter-gank when possible.' },
+        { label: 'Late',  cls: 'late',  desc: 'Secure Baron Nashor. Hard engage or peel for your carries depending on your champion\'s job.' },
+      ],
+      beginners: {
+        easy: [
+          { champ: 'Warwick',  tip: 'Simple kit, hard to die on. Ult at point-blank range so enemies can\'t Flash out.' },
+          { champ: 'Amumu',    tip: 'Point-and-click CC, easy clears, and a teamfight ult that wins fights instantly.' },
+          { champ: 'Vi',       tip: 'Point-and-click ultimate — lock down carries or peel enemies off your ADC.' },
+          { champ: 'Rammus',   tip: 'Taunt and roll. Very durable, straightforward to itemize, great at objectives.' },
+          { champ: 'Nunu',     tip: 'Best at stealing objectives with Smite. Forgiving early game with free healing.' },
+        ],
+        hard: [
+          { champ: 'Lee Sin',   tip: 'Ward-jump combos and Insec kicks have a very high mechanical ceiling.' },
+          { champ: 'Kha\'Zix',  tip: 'Isolation mechanics and evolution choices confuse beginners who miss the basics.' },
+          { champ: 'Nidalee',   tip: 'Spear accuracy needed for effectiveness. Form-switching takes time to internalize.' },
+          { champ: 'Kindred',   tip: 'Juggling mark targets while pathing efficiently is extremely hard to manage at once.' },
+          { champ: 'Rengar',    tip: 'Ferocity stack counting and leap burst calculations punish any hesitation.' },
+        ]
+      }
+    },
+    mid: {
+      name: 'Mid Lane', icon: 'blue', iconPath: 'M13 2 3 14h9l-1 8 10-12h-9l1-8z',
+      desc: 'Control the center of the map and roam to impact every lane.',
+      phases: [
+        { label: 'Early', cls: 'early', desc: 'Push the wave then roam to bot or top. Always ping before roaming so your team knows to follow up.' },
+        { label: 'Mid',   cls: 'mid',   desc: 'Rotate to dragon and herald fights. Control vision in the river and enemy jungle entrances.' },
+        { label: 'Late',  cls: 'late',  desc: 'Stay with your team. You are likely the primary damage dealer — dying costs your team the fight.' },
+      ],
+      beginners: {
+        easy: [
+          { champ: 'Annie',      tip: 'Count stun stacks and press buttons. Simple, rewarding, and very beginner-friendly.' },
+          { champ: 'Lux',        tip: 'Long range, safe, and easy to understand. Hit Q binding, then combo the rest.' },
+          { champ: 'Veigar',     tip: 'Farm AP with Q every wave. Cage against walls, then ult for a one-shot.' },
+          { champ: 'Malzahar',   tip: 'Easy waveclear with W voidlings. Simple ult — build Zhonya\'s to stay safe.' },
+          { champ: 'Vex',        tip: 'Punishes dashes automatically. Simple kit with clear counterplay and reliable burst.' },
+        ],
+        hard: [
+          { champ: 'Zed',     tip: 'Shadow placement and multi-shadow combos require a lot of mechanical practice.' },
+          { champ: 'Azir',    tip: 'Soldier micromanagement and positioning have one of the highest skill floors in the game.' },
+          { champ: 'Yasuo',   tip: 'Wind Wall timing, Flow shield management, and combos all raise the bar significantly.' },
+          { champ: 'LeBlanc', tip: 'Clone management and combo order decisions demand sharp decision-making at all times.' },
+          { champ: 'Akali',   tip: 'Shroud invisibility management and burst combo timing are punishing to learn.' },
+        ]
+      }
+    },
+    bot: {
+      name: 'Bot Lane (ADC)', icon: 'green', iconPath: 'M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z',
+      desc: 'Farm safely in early game, scale up, and become the team\'s late-game damage.',
+      phases: [
+        { label: 'Early', cls: 'early', desc: 'Focus on CS. Only trade when you have a clear HP or level advantage. Let your support initiate.' },
+        { label: 'Mid',   cls: 'mid',   desc: 'Group for dragon with your team. Start transitioning into teamfights with your first two items.' },
+        { label: 'Late',  cls: 'late',  desc: 'Stay protected at all costs. Your damage wins teamfights — dying once can lose the game.' },
+      ],
+      beginners: {
+        easy: [
+          { champ: 'Ashe',         tip: 'No dashes, very forgiving, global ult stun. Perfect first ADC to learn on.' },
+          { champ: 'Miss Fortune',  tip: 'Simple kit, powerful teamfight ult. Easy to get value from with minimal mechanics.' },
+          { champ: 'Sivir',        tip: 'Great waveclear, a reactive spell shield, and a strong team movement ult.' },
+          { champ: 'Jinx',         tip: 'Simple auto-attack pattern with clear reset mechanic on kills. Very satisfying to play.' },
+          { champ: 'Jhin',         tip: '4-shot pattern teaches auto timing. Locking-down enemies with traps is beginner-accessible.' },
+        ],
+        hard: [
+          { champ: 'Draven',    tip: 'Catching axes requires constant repositioning — very punishing when missed.' },
+          { champ: 'Kalista',   tip: 'Rend cancels, partner coordination, and unique hop movement all raise the floor high.' },
+          { champ: 'Vayne',     tip: 'Short range, low damage early, Condemn angles are complex and punishing if missed.' },
+          { champ: 'Aphelios',  tip: '5-weapon system with unique mechanics on each one. One of the most complex kits in the game.' },
+          { champ: 'Lucian',    tip: 'Two-hit passive juggling and relentless dash mechanics require sharp game sense.' },
+        ]
+      }
+    },
+    support: {
+      name: 'Support', icon: 'purple', iconPath: 'M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z',
+      desc: 'Protect your ADC, control vision, and set up kills for your team.',
+      phases: [
+        { label: 'Early', cls: 'early', desc: 'Ward river and lane bushes. Peel for your ADC and only engage when you have a clear advantage.' },
+        { label: 'Mid',   cls: 'mid',   desc: 'Roam to set up vision around objectives. Peel for your carries in skirmishes.' },
+        { label: 'Late',  cls: 'late',  desc: 'Ward Baron and Dragon. Engage or peel depending on your champion — never die for no reason.' },
+      ],
+      beginners: {
+        easy: [
+          { champ: 'Lulu',      tip: 'Strong utility on every button. Hard to make catastrophic mistakes. Very forgiving.' },
+          { champ: 'Soraka',    tip: 'Heal-focused, very safe, and teaches positioning. Global ult is very impactful.' },
+          { champ: 'Janna',     tip: 'Simple disengage tools, very safe to play, and great for protecting your ADC.' },
+          { champ: 'Sona',      tip: 'Multiple team buffs from one kit. Easy to contribute in every teamfight.' },
+          { champ: 'Seraphine', tip: 'AoE heals and shields in one kit. Extremely forgiving and very beginner-friendly.' },
+        ],
+        hard: [
+          { champ: 'Thresh',     tip: 'Hook accuracy under pressure and lantern timing take a long time to develop.' },
+          { champ: 'Bard',       tip: 'Chime roaming and an ult that can accidentally help enemies makes him very risky.' },
+          { champ: 'Pyke',       tip: 'Execution timing and roam calculations are punishing when missed or mistimed.' },
+          { champ: 'Zyra',       tip: 'Plant placement and combo setup need strong spatial awareness to be effective.' },
+          { champ: 'Blitzcrank', tip: 'Hook accuracy in a crowded lane full of minions is extremely demanding to master.' },
+        ]
+      }
+    }
+  };
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    document.getElementById('nav-' + id).classList.add('active');
+  }
+
+  // ── Role selection ─────────────────────────────────────────────────────────
+  function selectRole(key) {
+    _activeRole = key;
+    const r = ROLE_DATA[key];
+
+    // Update all role rows
+    document.querySelectorAll('.role-row').forEach(row => row.classList.remove('active'));
+    document.getElementById('rr-' + key).classList.add('active');
+
+    // Show quest banner
+    const banner = document.getElementById('questBanner');
+    const icon   = document.getElementById('qbIcon');
+    icon.className = `qb-icon icon-${r.icon}`;
+    icon.innerHTML = `<svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--${r.icon === 'orange' ? 'orange' : r.icon === 'red' ? 'red' : r.icon === 'blue' ? 'blue' : r.icon === 'green' ? 'green' : 'purple'});fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="${r.iconPath}"/></svg>`;
+    document.getElementById('qbName').textContent = r.name;
+    banner.classList.add('show');
+
+    document.getElementById('rolePickerLabel').textContent = 'Your role — tap to switch';
+
+    // Build guide content
+    renderGuide(key);
+  }
+
+  function clearQuest() {
+    _activeRole = null;
+    document.querySelectorAll('.role-row').forEach(r => r.classList.remove('active'));
+    document.getElementById('questBanner').classList.remove('show');
+    document.getElementById('rolePickerLabel').textContent = 'Choose a role to start';
+    document.getElementById('guideEmpty').style.display  = '';
+    document.getElementById('guideContent').style.display = 'none';
+  }
+
+  // ── Guide renderer ─────────────────────────────────────────────────────────
+  function renderGuide(key) {
+    const r   = ROLE_DATA[key];
+    const bd  = r.beginners;
+    const col = `var(--${r.icon === 'orange' ? 'orange' : r.icon === 'red' ? 'red' : r.icon === 'blue' ? 'blue' : r.icon === 'green' ? 'green' : 'purple'})`;
+
+    const phasesHTML = r.phases.map(p => `
+      <div class="guide-phase">
+        <div class="gp-label ${p.cls}">${p.label} game</div>
+        <div class="gp-desc">${p.desc}</div>
+      </div>
+    `).join('');
+
+    const easyHTML = bd.easy.map(m => `
+      <div class="counter-card easy">
+        <div class="counter-champ easy">${m.champ}</div>
+        <div class="counter-tip">${m.tip}</div>
+      </div>
+    `).join('');
+
+    const hardHTML = bd.hard.map(m => `
+      <div class="counter-card hard">
+        <div class="counter-champ hard">${m.champ}</div>
+        <div class="counter-tip">${m.tip}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('guideContent').innerHTML = `
+      <div class="guide-role-header">
+        <div class="guide-role-icon icon-${r.icon}">
+          <svg viewBox="0 0 24 24" style="stroke:${col};"><path d="${r.iconPath}"/></svg>
+        </div>
+        <div>
+          <div class="guide-role-name">${r.name}</div>
+          <div class="guide-role-sub">${r.desc}</div>
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <div class="section-title">Game phases</div>
+        ${phasesHTML}
+      </div>
+
+      <div class="guide-section">
+        <div class="section-title">Champions for this role</div>
+        <div class="counter-group-label easy" style="margin-bottom:8px;">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Easiest to play
+        </div>
+        ${easyHTML}
+        <div class="counter-group-label hard" style="margin-top:12px;margin-bottom:8px;">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Harder picks
+        </div>
+        ${hardHTML}
+      </div>
+    `;
+
+    document.getElementById('guideEmpty').style.display   = 'none';
+    document.getElementById('guideContent').style.display = 'block';
+  }
+
+  // ── Simple Mode ────────────────────────────────────────────────────────────
+  function setSimpleMode(on) {
+    _simpleMode = on;
+    document.getElementById('simpleModeSettings').checked = on;
+  }
+
+  // ── Window controls ────────────────────────────────────────────────────────
+  function minimizeWin() {
+    if (typeof overwolf !== 'undefined') {
+      overwolf.windows.getCurrentWindow(r => overwolf.windows.minimize(r.window.id, () => {}));
+    }
+  }
+  function closeWin() {
+    if (typeof overwolf !== 'undefined') {
+      overwolf.windows.getCurrentWindow(r => overwolf.windows.close(r.window.id, () => {}));
+    }
+  }
+
+  // ── Post-game Summary ─────────────────────────────────────────────────────
+  function showSummary(stats) {
+    const { kills = 0, deaths = 0, assists = 0, role = null } = stats;
+
+    // Populate KDA
+    document.getElementById('summaryKills').textContent   = kills;
+    document.getElementById('summaryDeaths').textContent  = deaths;
+    document.getElementById('summaryAssists').textContent = assists;
+
+    // Performance rating
+    const kda   = (kills + assists) / Math.max(deaths, 1);
+    let perfCls, perfIcon, perfRating, perfSub;
+    if (kda >= 3) {
+      perfCls = 'great'; perfIcon = '🏆'; perfRating = 'Great game!';
+      perfSub = `KDA ${kda.toFixed(1)} — you carried your weight this game.`;
+    } else if (kda >= 2) {
+      perfCls = 'good';  perfIcon = '✅'; perfRating = 'Good game';
+      perfSub = `KDA ${kda.toFixed(1)} — solid performance, keep it up.`;
+    } else if (kda >= 1) {
+      perfCls = 'okay';  perfIcon = '🟡'; perfRating = 'Decent game';
+      perfSub = `KDA ${kda.toFixed(1)} — room to grow, especially on deaths.`;
+    } else {
+      perfCls = 'tough'; perfIcon = '📉'; perfRating = 'Tough game';
+      perfSub = `KDA ${kda.toFixed(1)} — it happens. Focus on the tip below.`;
+    }
+
+    const pc = document.getElementById('perfCard');
+    pc.className = `perf-card ${perfCls}`;
+    document.getElementById('perfIcon').textContent   = perfIcon;
+    const pr = document.getElementById('perfRating');
+    pr.className  = `perf-rating ${perfCls}`;
+    pr.textContent = perfRating;
+    document.getElementById('perfSub').textContent    = perfSub;
+
+    // Trophy and title
+    document.getElementById('summaryTrophy').textContent  = perfIcon;
+    document.getElementById('summaryTitle').textContent   = perfRating;
+    document.getElementById('summarySubtitle').textContent = role
+      ? `${role.charAt(0).toUpperCase() + role.slice(1)} · ${kills}/${deaths}/${assists}`
+      : `${kills}/${deaths}/${assists}`;
+
+    // Next-game tip
+    let tip;
+    if (deaths >= 7) {
+      tip = 'High death count — prioritize playing safe over making plays. Staying alive is worth more than any kill.';
+    } else if (deaths >= 4 && kda < 1.5) {
+      tip = 'Several deaths dragged your KDA down. Try freezing the wave near your tower when behind — it removes a lot of risk.';
+    } else if (deaths >= 3) {
+      tip = 'Watch your positioning before committing to fights. Always check the minimap for the enemy jungler before extending.';
+    } else if (kills >= 6 && deaths <= 2) {
+      tip = 'Excellent game! Next step: convert your lead faster by taking objectives right after winning a fight.';
+    } else if (assists >= 8) {
+      tip = 'Strong team support! Make sure you\'re also picking up kills when safe — it accelerates your item power spikes.';
+    } else {
+      tip = 'Focus on farming minions consistently — a CS lead often matters more than kill pressure in the early game.';
+    }
+    document.getElementById('summaryTip').textContent = tip;
+
+    // Show the "Last Match" nav tab and navigate there
+    document.getElementById('nav-summary').classList.remove('summary-hidden');
+    showScreen('summary');
+  }
+
+  // ── Messages from background.js ───────────────────────────────────────────
+  if (typeof overwolf !== 'undefined') {
+    overwolf.windows.onMessageReceived.addListener(msg => {
+      if (msg.id === 'MATCH_START')   console.log('[Desktop] Match started');
+      if (msg.id === 'MATCH_END')     console.log('[Desktop] Match ended');
+      if (msg.id === 'MATCH_SUMMARY') showSummary(msg.content);
+    });
+  }
+</script>
+</body>
+</html>
