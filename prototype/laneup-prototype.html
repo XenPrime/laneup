@@ -598,6 +598,37 @@ hr { border: none; border-top: 1px solid var(--border); }
 }
 .role-check svg { width: 9px; height: 9px; stroke: #041209; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
+/* Counter matchup cards */
+.counter-section { margin-top: 6px; }
+.counter-group { margin-bottom: 16px; }
+.counter-group-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .7px;
+  text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.counter-group-label.hard { color: var(--red); }
+.counter-group-label.easy { color: var(--green); }
+.counter-group-label svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.counter-card {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 9px 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+}
+.counter-card.hard { border-left: 2px solid var(--red); }
+.counter-card.easy { border-left: 2px solid var(--green); }
+.counter-champ {
+  font-size: 11px; font-weight: 700;
+  white-space: nowrap;
+  min-width: 72px;
+  padding-top: 1px;
+}
+.counter-champ.hard { color: var(--red); }
+.counter-champ.easy { color: var(--green); }
+.counter-tip { font-size: 11px; color: var(--dim); line-height: 1.45; }
+
 /* Settings strip (Simple Mode + Death Review) */
 .settings-strip {
   margin-top: 12px;
@@ -2407,6 +2438,104 @@ hr { border: none; border-top: 1px solid var(--border); }
     }
   };
 
+  /* ══ COUNTER DATA ══ */
+  const COUNTERS = {
+    top: {
+      hard: [
+        { champ: 'Darius',     tip: 'His passive bleed stacks punish every trade. Avoid extended fights — poke and back off before he reaches 5 stacks.' },
+        { champ: 'Fiora',      tip: 'Her Riposte (W) blocks your key abilities. Bait it first before committing to a trade or you get stunned.' },
+        { champ: 'Teemo',      tip: 'Ranged bully who blinds your autos. Stay behind minions to block his Q and check bushes for mushrooms.' },
+        { champ: 'Tryndamere', tip: 'Nearly unkillable when his ultimate is up (~110s CD). Only fight him when it is down — track it carefully.' },
+        { champ: 'Kayle',      tip: 'Weak early but untouchable late. Abuse her hard before levels 6 and 11. Once she scales, avoid 1v1s completely.' },
+        { champ: 'Gwen',       tip: 'Her Hallowed Mist makes her immune to everything from outside it. Never fight her while she is in the mist.' },
+      ],
+      easy: [
+        { champ: 'Nasus',   tip: 'Farms passively early. Pressure him constantly pre-6 to deny stacks — he becomes a monster if left alone to farm.' },
+        { champ: 'Garen',   tip: 'Straightforward kit with no mobility. Stay at range to dodge his Q silence and punish him when his E spin is down.' },
+        { champ: 'Malphite',tip: 'Deals almost entirely AP damage. One magic resist item (Wit\'s End, Hexdrinker) shuts down most of his damage.' },
+        { champ: 'Singed',  tip: 'Wants you to chase him — don\'t. Let him proxy farm and group with your team instead of giving him 1v1s.' },
+        { champ: 'Mundo',   tip: 'Almost entirely magic damage and very predictable. Magic resist items hard counter his whole kit.' },
+        { champ: 'Cho\'Gath', tip: 'Slow and telegraphed. Dodge his Rupture (Q) — the ground shakes before the knockup. No Q means no kill threat.' },
+      ]
+    },
+
+    jungle: {
+      hard: [
+        { champ: 'Lee Sin',   tip: 'High early damage and extreme mobility. Ward his likely paths and never fight him in the early jungle without backup.' },
+        { champ: 'Elise',     tip: 'Strong early ganker with reliable CC. Stay healthy to survive her burst combo and respect her pre-6 gank range.' },
+        { champ: 'Hecarim',   tip: 'Fastest ganks in the game thanks to Ghost. Keep river warded constantly and avoid overextending when his position is unknown.' },
+        { champ: 'Evelynn',   tip: 'Goes invisible (Camouflage) at level 6. After 6, treat her position as always unknown — hug tower if unsure.' },
+        { champ: 'Vi',        tip: 'Her ultimate locks you down even through Flash. Group near teammates when Vi is missing from the map.' },
+        { champ: 'Shaco',     tip: 'Can invade and steal your buffs at level 1. Ward buff entrances before the game starts and clear your camps quickly.' },
+      ],
+      easy: [
+        { champ: 'Amumu',      tip: 'Weak early and needs his Q to gank. Kite him in the jungle and counter-jungle his camps when he overextends.' },
+        { champ: 'Warwick',    tip: 'Mostly threatens low-HP targets. Stay healthy and he has almost no gank pressure before level 6.' },
+        { champ: 'Nunu',       tip: 'Strong at objectives but low fight damage. Outpace him on camps and contest smite — he folds in direct fights.' },
+        { champ: 'Fiddlesticks',tip: 'His ultimate is telegraphed and requires a long channel. Deep ward his jungle to spot the setup before he casts.' },
+        { champ: 'Master Yi',  tip: 'Very weak early and collapses against CC. Coordinate CC chains with your team — he can\'t deal with being locked down.' },
+        { champ: 'Karthus',    tip: 'Zero mobility and easy to invade early. Kill him in his jungle whenever possible — he has no escape tools whatsoever.' },
+      ]
+    },
+
+    mid: {
+      hard: [
+        { champ: 'Zed',      tip: 'Buy Zhonya\'s Hourglass as your first or second item. Activate it the moment he casts his ultimate to waste the burst.' },
+        { champ: 'Yasuo',    tip: 'His Wind Wall blocks all projectiles for several seconds. Bait it out or wait for it to expire before using key abilities.' },
+        { champ: 'Fizz',     tip: 'His Playful/Trickster (E) dodges your abilities. Bait it first — once it\'s down, he is vulnerable for 10+ seconds.' },
+        { champ: 'LeBlanc',  tip: 'Extreme burst that can one-shot at level 6. If she lands Q+W on you, Flash away immediately or you will die.' },
+        { champ: 'Syndra',   tip: 'Long range bully. Stand behind minions to block her Q spheres. Never fight her with 5+ spheres on the ground near her.' },
+        { champ: 'Akali',    tip: 'Goes invisible in her shroud (W). Back off when she enters the shroud — she will combo you the moment you try to fight.' },
+      ],
+      easy: [
+        { champ: 'Annie',        tip: 'Her stun is telegraphed by her passive counter. Count her spells — 4 casts means stun is ready. Play back on cast 3.' },
+        { champ: 'Veigar',       tip: 'Slow and immobile. Dodge his Event Horizon cage by moving sideways along the wall, never straight back into it.' },
+        { champ: 'Lux',          tip: 'Skillshots only — sidestep her Q binding and she loses almost all her CC and follow-up damage.' },
+        { champ: 'Malzahar',     tip: 'No mobility whatsoever. Push the wave, roam for kills, and buy a QSS item to instantly remove his ultimate.' },
+        { champ: 'Twisted Fate', tip: 'Telegraphs every roam with his golden card and his ultimate on the minimap. Ping your team and follow immediately.' },
+        { champ: 'Viktor',       tip: 'Relies on landing his Gravity Field (W) stun. Stand just outside his W radius — he has limited threat without it.' },
+      ]
+    },
+
+    bot: {
+      hard: [
+        { champ: 'Draven',    tip: 'Massive level 1 damage from his spinning axes. Losing to Draven early snowballs fast — survive lane and scale.' },
+        { champ: 'Caitlyn',   tip: 'Extreme range advantage. Stay behind minions to block her Q poke and step away from her traps immediately.' },
+        { champ: 'Jinx',      tip: 'AoE rockets destroy grouped teams. Force early fights before Kraken Slayer — she is weak before first item.' },
+        { champ: 'Miss Fortune',tip: 'Her Double Up bounces off minions onto you. Never stand directly behind a low-HP minion when she has mana.' },
+        { champ: 'Samira',    tip: 'Her passive shield blocks chained abilities. Mix up your spell timing and never cluster too close to her.' },
+        { champ: 'Kai\'Sa',   tip: 'Extremely strong after two items. Respect her all-in after Manamune + mythic are complete — she can one-shot from stealth.' },
+      ],
+      easy: [
+        { champ: 'Senna',  tip: 'Support-ADC hybrid who is very squishy. Burst her down quickly before she can stack souls or heal up with W.' },
+        { champ: 'Sivir',  tip: 'Spell shield blocks one ability but has a long cooldown. Bait the shield then engage — she is fairly immobile without it.' },
+        { champ: 'Ashe',   tip: 'Zero mobility abilities. Dive her aggressively after her ultimate is used — she cannot escape without Flash.' },
+        { champ: 'Nilah',  tip: 'Melee ADC who must close the gap. Kite constantly and keep her at range — she is completely helpless from distance.' },
+        { champ: 'Varus',  tip: 'Long cast time on his Q. Sidestep it and punish him while he charges — his only engage tool is his slow ultimate.' },
+        { champ: 'Twitch', tip: 'Squishy and very weak in lane. Punish his passive-farming phase hard before he reaches his 3-item power spike.' },
+      ]
+    },
+
+    support: {
+      hard: [
+        { champ: 'Blitzcrank', tip: 'His grab is an instant death sentence. Always stand behind your ADC and minions — never be the closest target to him.' },
+        { champ: 'Thresh',     tip: 'His hook curves around minions. Never stand in a predictable position and respect his lantern as an escape tool for his ADC.' },
+        { champ: 'Nautilus',   tip: 'Chains CC endlessly — hook, passive root, ultimate. Flash away the moment his hook lands on your ADC.' },
+        { champ: 'Morgana',    tip: 'Her Black Shield blocks all CC. Never engage while your target has her shield active — wait for it to expire or get used.' },
+        { champ: 'Lulu',       tip: 'Poke and disengage in one kit. Her Polymorph (W) counters hard engage. Don\'t commit to all-ins when she still has it.' },
+        { champ: 'Zyra',       tip: 'Her plants do serious damage and her snare sets up easy kills. Destroy her plants immediately when she places them.' },
+      ],
+      easy: [
+        { champ: 'Soraka',  tip: 'No hard engage and limited CC. Poke her out of healing range — she\'s helpless if she can\'t keep herself and her ADC healthy.' },
+        { champ: 'Yuumi',   tip: 'Helpless without an ADC to attach to. Kill the ADC she\'s attached to — Yuumi has no combat ability on her own.' },
+        { champ: 'Sona',    tip: 'Fragile and relies on landing her Power Chord. Crowd control her in teamfights and she contributes almost nothing.' },
+        { champ: 'Janna',   tip: 'Pure disengage with zero initiation. Force fights when she\'s out of position or her ultimate (R) is on cooldown.' },
+        { champ: 'Nami',    tip: 'Her only hard CC (bubble Q) is slow and easy to dodge. Consistently dodging it removes almost all her kill threat.' },
+        { champ: 'Seraphine',tip: 'High damage but very squishy and immobile. Dive her early and often — she melts quickly under any focused pressure.' },
+      ]
+    }
+  };
+
   /* ‚îÄ‚îÄ MODAL LOGIC ‚îÄ‚îÄ */
   function openRole(key) {
     const r = ROLES[key];
@@ -2464,6 +2593,38 @@ hr { border: none; border-top: 1px solid var(--border); }
 
     const stubNote = '';
 
+    // Counters section
+    const cd = COUNTERS[key];
+    const countersHTML = cd ? `
+      <div class="modal-section counter-section">
+        <div class="modal-section-label">Matchup guide</div>
+        <div class="counter-group">
+          <div class="counter-group-label hard">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Watch out for
+          </div>
+          ${cd.hard.map(m => `
+            <div class="counter-card hard">
+              <div class="counter-champ hard">${m.champ}</div>
+              <div class="counter-tip">${m.tip}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="counter-group">
+          <div class="counter-group-label easy">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            Easier matchups
+          </div>
+          ${cd.easy.map(m => `
+            <div class="counter-card easy">
+              <div class="counter-champ easy">${m.champ}</div>
+              <div class="counter-tip">${m.tip}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
     document.getElementById('modalBody').innerHTML = `
       ${stubNote}
       <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:24px;">${r.summary}</p>
@@ -2497,6 +2658,8 @@ hr { border: none; border-top: 1px solid var(--border); }
           </div>
         </div>
       </div>
+
+      ${countersHTML}
     `;
 
     // Track which role is open so Start Learning knows what to activate
